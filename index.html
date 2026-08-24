@@ -894,6 +894,15 @@ function buildBoard(){
     for(let c=0;c<cols;c++){
       const x = startX + c*gapX;
       if (x < W*0.08 || x > W*0.92) continue;
+      const archClearance = pegR + Math.max(6,W*0.02) + 4;
+      const nearArch = archLayout.some(arch=>{
+        for(let i=0;i<arch.points.length-1;i++){
+          const [x1,y1] = arch.points[i], [x2,y2] = arch.points[i+1];
+          if(pointSegmentDistance(x,y,x1,y1,x2,y2) < archClearance) return true;
+        }
+        return false;
+      });
+      if (nearArch) continue;
       const peg = Bodies.circle(x, y, pegR, { isStatic:true, restitution:0.65, friction:0.02, label:'peg' });
       pegs.push(peg);
     }
@@ -920,6 +929,13 @@ function buildBoard(){
   walls.push(Bodies.rectangle(W/2, H+10, W*2, 20, {isStatic:true, render:{visible:false}}));
 
   World.add(world, [...walls, ...pegs, ...archParts, bonusSensor, ...bucketSensors]);
+}
+
+function pointSegmentDistance(px,py,x1,y1,x2,y2){
+  const dx = x2-x1, dy = y2-y1;
+  const lengthSquared = dx*dx + dy*dy;
+  const t = lengthSquared ? Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/lengthSquared)) : 0;
+  return Math.hypot(px-(x1+t*dx), py-(y1+t*dy));
 }
 
 function spawnBall(x){
@@ -953,6 +969,8 @@ function onCollision(ev){
 async function handleBonusHit(ball){
   if (ball._bonusHitCooldown) return;
   ball._bonusHitCooldown = true;
+  World.remove(world, ball);
+  balls = balls.filter(b=>b!==ball);
   setTimeout(()=> ball._bonusHitCooldown=false, 600);
   state.bonusHits++;
   renderBonusDots();
