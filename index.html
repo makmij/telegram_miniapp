@@ -825,7 +825,7 @@ $('#streakBtn').addEventListener('click', ()=>{
 ============================================================ */
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 let engine, world, canvas, ctx, W, H;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], archParts = [], archLayout = [], launcherParts = [], outerArchParts = [];
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], archParts = [], archLayout = [], launcherParts = [], outerArchParts = [], playfieldPath = [];
 let balls = [];
 
 function initPhysics(){
@@ -857,26 +857,13 @@ function resizeCanvas(){
 }
 
 function buildBoard(){
-  pegs = []; bucketSensors = []; walls = []; archParts = []; archLayout = []; launcherParts = []; outerArchParts = [];
+  pegs = []; bucketSensors = []; walls = []; archParts = []; archLayout = []; launcherParts = []; outerArchParts = []; playfieldPath = [];
   const wallOpts = { isStatic:true, restitution:0.35, friction:0.05, render:{visible:false} };
 
-  const wallX = W*0.06, rightX = W*0.94;
-  const archRadius = (rightX-wallX)/2;
-  const archCenterX = (wallX+rightX)/2, archCenterY = H*0.30;
-  const archStart = Math.PI, archEnd = Math.PI*2;
-  const archPoints = [];
-  for(let i=0;i<=18;i++){
-    const angle = archStart + (archEnd-archStart)*i/18;
-    archPoints.push([archCenterX + Math.cos(angle)*archRadius, archCenterY + Math.sin(angle)*archRadius]);
-  }
-  outerArchParts = addPhysicalPolyline(archPoints, 'outer_arch', Math.max(7,W*0.025), 0.32);
-  walls.push(Bodies.rectangle(wallX, (archCenterY+H)/2, Math.max(7,W*0.025), H-archCenterY, wallOpts));
-  walls.push(Bodies.rectangle(rightX, (archCenterY+H)/2, Math.max(7,W*0.025), H-archCenterY, wallOpts));
-
-  const laneLeft = W*0.78;
-  launcherParts.push(Bodies.rectangle(laneLeft, (archCenterY+H)/2, Math.max(7,W*0.02), H-archCenterY, {
-    isStatic:true, restitution:0.08, friction:0.02, label:'launcher', render:{visible:false}
-  }));
+  const border = buildPlayfieldBorders(wallOpts);
+  outerArchParts = border.outer;
+  walls.push(...border.verticalWalls);
+  launcherParts.push(border.plungerWall);
 
   archLayout = [
     {points:[[W*0.32,H*0.40],[W*0.35,H*0.37],[W*0.39,H*0.35],[W*0.44,H*0.34]]},
@@ -944,6 +931,28 @@ function buildBoard(){
   walls.push(Bodies.rectangle(W/2, H+10, W*2, 20, {isStatic:true, render:{visible:false}}));
 
   World.add(world, [...walls, ...outerArchParts, ...pegs, ...archParts, ...launcherParts, bonusSensor, ...bucketSensors]);
+}
+
+function buildPlayfieldBorders(wallOpts){
+  const wallX = W*0.06, rightX = W*0.94;
+  const archRadius = (rightX-wallX)/2;
+  const archCenterX = (wallX+rightX)/2, archCenterY = H*0.30;
+  const archPoints = [];
+  for(let i=0;i<=24;i++){
+    const angle = Math.PI + Math.PI*i/24;
+    archPoints.push([archCenterX + Math.cos(angle)*archRadius, archCenterY + Math.sin(angle)*archRadius]);
+  }
+  playfieldPath = [[wallX,H], [wallX,archCenterY], ...archPoints.slice(1,-1), [rightX,archCenterY], [rightX,H]];
+  const thickness = Math.max(7,W*0.025);
+  const verticalWalls = [
+    Bodies.rectangle(wallX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts),
+    Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts)
+  ];
+  const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.32);
+  const plungerWall = Bodies.rectangle(W*0.78,(archCenterY+H)/2,Math.max(7,W*0.02),H-archCenterY, {
+    isStatic:true, restitution:0.08, friction:0.02, label:'plunger_wall', render:{visible:false}
+  });
+  return {outer, verticalWalls, plungerWall};
 }
 
 function addPhysicalPolyline(points, label, thickness, restitution){
@@ -1027,12 +1036,19 @@ function render(){
   ctx.clearRect(0,0,W,H);
 
   if(outerArchParts.length){
-    const wallX = W*0.06, rightX = W*0.94;
-    const archRadius = (rightX-wallX)/2;
-    const archCenterX = (wallX+rightX)/2, archCenterY = H*0.30;
     ctx.save();
     ctx.beginPath();
-    ctx.arc(archCenterX,archCenterY,archRadius,Math.PI,Math.PI*2);
+    ctx.moveTo(playfieldPath[0][0],playfieldPath[0][1]);
+    playfieldPath.slice(1).forEach(point=>ctx.lineTo(point[0],point[1]));
+    ctx.closePath();
+    const fieldFill = ctx.createLinearGradient(0,0,0,H);
+    fieldFill.addColorStop(0,'rgba(74,37,144,.82)');
+    fieldFill.addColorStop(1,'rgba(32,14,64,.92)');
+    ctx.fillStyle = fieldFill;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(playfieldPath[0][0],playfieldPath[0][1]);
+    playfieldPath.slice(1).forEach(point=>ctx.lineTo(point[0],point[1]));
     ctx.strokeStyle = 'rgba(243,192,74,.9)';
     ctx.lineWidth = Math.max(7,W*0.028);
     ctx.lineCap = 'round';
