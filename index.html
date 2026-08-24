@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>С+М Пинбол</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-deep:#130824;
+  --bg-mid:#231045;
+  --violet:#2c1354;
+  --violet-2:#3d1c72;
+  --board-1:#4a2590;
+  --board-2:#341868;
+  --gold-hi:#fff3cf;
+  --gold:#f3c04a;
+  --gold-lo:#a9700f;
+  --rose:#ff5b82;
+  --rose-2:#ff8fab;
+  --rose-deep:#c21c4c;
+  --sapphire:#4fc3e8;
+  --emerald:#59d9a0;
+  --amethyst:#b98af0;
+  --ink:#fbf4ff;
+  --ink-dim:#c1acec;
+  --ink-faint:#8a76b8;
+  --panel:linear-gradient(160deg, rgba(74,42,140,.55), rgba(24,12,48,.68));
+  --panel-brd:rgba(243,192,74,.28);
+  --glow-gold:0 0 22px rgba(243,192,74,.35);
+  --glow-rose:0 0 20px rgba(255,91,130,.45);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+html,body{
+  margin:0; padding:0; height:100%; overflow:hidden;
+  background:
+    radial-gradient(140% 70% at 50% -15%, #5a2fa8 0%, transparent 55%),
+    radial-gradient(90% 50% at 85% 100%, rgba(255,91,130,.14) 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg-mid) 0%, var(--bg-deep) 55%, #0a0417 100%);
+  font-family:'Nunito', sans-serif;
+  color:var(--ink);
+  touch-action:none;
+}
+.app{
+  position:relative; width:100%; height:100vh; height:100dvh; max-width:480px; margin:0 auto;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+
+/* film grain for premium tactile feel */
+.grain{
+  position:absolute; inset:-20%; z-index:1; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.stars{position:absolute; inset:0; pointer-events:none; z-index:0; opacity:.55;
+  background-image:
+    radial-gradient(2px 2px at 20% 15%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 70% 8%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 85% 30%, #fff, transparent),
+    radial-gradient(2px 2px at 10% 55%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 40% 80%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 90% 70%, #fff, transparent);
+  animation:twinkle 4s ease-in-out infinite alternate;
+}
+@keyframes twinkle{from{opacity:.3}to{opacity:.7}}
+
+.icon{width:1em; height:1em; display:inline-block; vertical-align:-0.12em; overflow:visible;}
+
+/* ===== TOP BAR ===== */
+.topbar{ z-index:5; display:flex; align-items:center; gap:8px; padding:12px 12px 8px; flex-shrink:0; }
+.pill{
+  display:flex; align-items:center; gap:7px;
+  background:linear-gradient(180deg, rgba(80,44,150,.85), rgba(28,13,54,.9));
+  border:1px solid var(--panel-brd); border-top-color:rgba(255,255,255,.28);
+  border-radius:17px; padding:6px 13px 6px 7px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), inset 0 -6px 10px -6px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.4);
+}
+.pill .icon{font-size:24px; filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));}
+.heart-label{font-family:'Baloo 2'; font-weight:800; font-size:14.5px; letter-spacing:.2px;}
+.topbar .spacer{flex:1;}
+.streak-btn{
+  width:40px; height:40px; border-radius:13px; flex-shrink:0; position:relative;
+  background:linear-gradient(155deg, var(--gold-hi) 0%, var(--gold) 45%, var(--gold-lo) 100%);
+  border:1px solid rgba(255,255,255,.5);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--glow-gold), inset 0 1px 1px rgba(255,255,255,.6), inset 0 -3px 5px rgba(120,70,0,.4), 0 4px 10px rgba(0,0,0,.4);
+  animation:pulseSoft 2.4s ease-in-out infinite;
+}
+.streak-btn .icon{font-size:20px; color:#5a3300;}
+@keyframes pulseSoft{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.07) rotate(-3deg)}}
+
+/* ===== GAME SCREEN ===== */
+.screen{position:relative; flex:1; min-height:0; display:none; flex-direction:column; z-index:2;}
+.screen.active{display:flex;}
+
+.board-wrap{
+  position:relative; flex:1; min-height:0; margin:2px 10px 6px;
+  border-radius:28px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--board-1) 0%, var(--violet-2) 45%, #200e40 100%);
+  border:1px solid rgba(255,255,255,.15);
+  box-shadow:
+    inset 0 0 0 3px rgba(20,8,42,.6),
+    inset 0 0 60px rgba(0,0,0,.55),
+    inset 0 3px 0 rgba(255,255,255,.14),
+    0 14px 34px rgba(0,0,0,.55), var(--glow-gold);
+  overflow:hidden;
+}
+.board-wrap::before{
+  content:''; position:absolute; inset:0; z-index:0; opacity:.5;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 2px, transparent 2px 26px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.035) 0 2px, transparent 2px 26px);
+}
+.board-wrap::after{
+  content:''; position:absolute; top:0; left:0; right:0; height:38%; z-index:1;
+  background:radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,.12), transparent 70%);
+  pointer-events:none;
+}
+#pinCanvas{position:absolute; inset:0; width:100%; height:100%; display:block; z-index:2;}
+
+.bonus-banner{
+  position:absolute; top:9px; left:50%; transform:translateX(-50%);
+  z-index:6; display:flex; align-items:center; gap:7px;
+  background:linear-gradient(180deg, rgba(30,14,58,.75), rgba(15,7,30,.75));
+  border:1px solid rgba(243,192,74,.4); border-top-color:rgba(255,255,255,.25);
+  padding:5px 12px 5px 8px; border-radius:13px; font-size:11px; font-weight:700; color:var(--gold-hi);
+  font-family:'Baloo 2'; box-shadow:0 3px 8px rgba(0,0,0,.35);
+}
+.bonus-banner .icon{font-size:15px;}
+.bonus-dots{display:flex; gap:3.5px;}
+.bonus-dots span{width:6px;height:6px;border-radius:50%; background:rgba(255,255,255,.2); box-shadow:inset 0 1px 1px rgba(0,0,0,.3);}
+.bonus-dots span.on{background:radial-gradient(circle at 35% 30%, #fff, var(--rose) 60%); box-shadow:0 0 6px var(--rose);}
+
+.floater{
+  position:absolute; z-index:8; font-family:'Baloo 2'; font-weight:800; font-size:15px;
+  color:var(--gold-hi); text-shadow:0 2px 6px rgba(0,0,0,.7);
+  pointer-events:none; animation:floatUp 1.15s ease-out forwards;
+}
+@keyframes floatUp{0%{opacity:0; transform:translate(-50%,0) scale(.7)} 15%{opacity:1; transform:translate(-50%,-6px) scale(1.15)} 100%{opacity:0; transform:translate(-50%,-62px) scale(1)}}
+
+.controls{ flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; padding:6px 14px 10px; }
+.balls-left-row{display:flex; align-items:center; gap:8px; font-family:'Baloo 2'; font-weight:700; font-size:12.5px; color:var(--ink-dim);}
+.balls-track{width:150px; height:9px; border-radius:6px; background:rgba(0,0,0,.35); overflow:hidden; border:1px solid rgba(255,255,255,.12); box-shadow:inset 0 2px 3px rgba(0,0,0,.5);}
+.balls-track i{display:block; height:100%; background:linear-gradient(90deg,var(--rose),var(--gold)); border-radius:6px; transition:width .3s; box-shadow:0 0 8px rgba(255,91,130,.6);}
+
+.launch-btn{
+  width:88px; height:88px; border-radius:50%; border:none; position:relative;
+  background:
+    radial-gradient(circle at 32% 26%, var(--gold-hi) 0%, var(--gold) 42%, var(--gold-lo) 100%);
+  box-shadow:
+    inset 0 3px 4px rgba(255,255,255,.7), inset 0 -8px 14px rgba(110,64,0,.55),
+    0 7px 0 #6e4008, 0 12px 22px rgba(0,0,0,.55), var(--glow-gold);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  font-family:'Baloo 2'; font-weight:800; font-size:12.5px; color:#5a3300; letter-spacing:.5px;
+  transition:transform .08s, box-shadow .08s;
+}
+.launch-btn .icon{font-size:26px; margin-bottom:1px; filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));}
+.launch-btn:active{transform:translateY(6px);
+  box-shadow:inset 0 3px 4px rgba(255,255,255,.7), inset 0 -8px 14px rgba(110,64,0,.55), 0 1px 0 #6e4008, 0 3px 8px rgba(0,0,0,.5);}
+.launch-btn:disabled{filter:grayscale(.75) brightness(.65); box-shadow:0 7px 0 #4a4a4a, 0 10px 16px rgba(0,0,0,.4);}
+
+/* ===== NAV BAR ===== */
+.navbar{ z-index:5; flex-shrink:0; display:flex; gap:9px; padding:8px 12px calc(10px + env(safe-area-inset-bottom)); }
+.nav-btn{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:linear-gradient(180deg, rgba(80,44,150,.5), rgba(24,12,48,.5));
+  border:1px solid rgba(255,255,255,.1); border-radius:17px; padding:10px 4px 8px;
+  font-family:'Baloo 2'; font-weight:700; font-size:11px; color:var(--ink-dim);
+  transition:all .16s; box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.nav-btn .icon{font-size:21px;}
+.nav-btn.active{
+  color:#5a3300;
+  background:linear-gradient(160deg,var(--gold-hi),var(--gold) 55%, #d99a1e);
+  border-color:rgba(255,255,255,.5);
+  box-shadow:var(--glow-gold), inset 0 1px 1px rgba(255,255,255,.6), inset 0 -3px 6px rgba(120,70,0,.35);
+  transform:translateY(-3px);
+}
+
+/* ===== SHOP SCREEN ===== */
+.shop-scroll{flex:1; overflow-y:auto; padding:12px 14px 16px; -webkit-overflow-scrolling:touch;}
+.shop-head{font-family:'Fraunces'; font-weight:700; font-style:italic; font-size:23px; margin:2px 0 4px; color:var(--gold-hi); text-shadow:0 2px 10px rgba(0,0,0,.4); display:flex; align-items:center; gap:8px;}
+.shop-head .icon{font-size:22px; font-style:normal;}
+.shop-sub{font-size:12.5px; color:var(--ink-dim); margin-bottom:16px; line-height:1.5;}
+
+.item-card{
+  position:relative; display:flex; align-items:center; gap:13px;
+  background:var(--panel); border:1px solid var(--panel-brd); border-top-color:rgba(255,255,255,.2);
+  border-radius:19px; padding:12px; margin-bottom:12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 8px 18px rgba(0,0,0,.35);
+}
+.item-card.locked{filter:saturate(.5) brightness(.75);}
+.item-card.locked::after{
+  content:''; position:absolute; inset:0; border-radius:19px;
+  background:rgba(8,4,16,.5); display:flex; align-items:center; justify-content:center;
+}
+.item-card.locked .lock-badge{
+  position:absolute; z-index:2; left:50%; top:50%; transform:translate(-50%,-50%);
+  display:flex; align-items:center; gap:6px; background:rgba(10,5,20,.85); border:1px solid rgba(243,192,74,.4);
+  padding:6px 12px; border-radius:11px; font-family:'Baloo 2'; font-size:11px; color:var(--gold-hi);
+}
+.item-emoji{
+  width:56px; height:56px; flex-shrink:0; border-radius:16px; position:relative;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255,255,255,.22), transparent 55%),
+    linear-gradient(160deg, var(--board-1), var(--violet-2));
+  border:1px solid rgba(243,192,74,.45); border-top-color:rgba(255,255,255,.4);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.12), inset 0 -4px 8px rgba(0,0,0,.4), 0 4px 10px rgba(0,0,0,.3);
+}
+.item-emoji .icon{font-size:28px; filter:drop-shadow(0 2px 3px rgba(0,0,0,.4));}
+.item-info{flex:1; min-width:0;}
+.item-title{font-family:'Baloo 2'; font-weight:700; font-size:15px; color:var(--ink);}
+.item-desc{font-size:11.5px; color:var(--ink-dim); margin-top:1px; line-height:1.35;}
+.item-buy{
+  display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0;
+  background:linear-gradient(160deg,var(--gold-hi),var(--gold) 55%, #d99a1e); color:#5a3300;
+  border:1px solid rgba(255,255,255,.5); border-radius:14px; padding:9px 11px; font-family:'Baloo 2'; font-weight:800; font-size:12.5px;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.6), inset 0 -3px 5px rgba(120,70,0,.35), 0 4px 0 var(--gold-lo);
+}
+.item-buy .icon{font-size:12px; vertical-align:-1px;}
+.item-buy:active{transform:translateY(3px); box-shadow:inset 0 1px 1px rgba(255,255,255,.6), 0 1px 0 var(--gold-lo);}
+.item-buy:disabled{background:linear-gradient(160deg,#5c5270,#463c5c); color:#a596c4; box-shadow:0 4px 0 #2c2540; border-color:rgba(255,255,255,.15);}
+.item-buy small{font-size:9px; font-weight:600; opacity:.85;}
+
+/* ===== PURCHASES SCREEN ===== */
+.hist-scroll{flex:1; overflow-y:auto; padding:12px 14px 16px;}
+.hist-item{
+  display:flex; align-items:center; gap:11px;
+  background:var(--panel); border:1px solid var(--panel-brd); border-top-color:rgba(255,255,255,.2);
+  border-radius:15px; padding:10px 12px; margin-bottom:9px;
+}
+.hist-emoji{
+  width:36px; height:36px; border-radius:10px; flex-shrink:0;
+  background:linear-gradient(160deg, var(--board-1), var(--violet-2)); border:1px solid rgba(243,192,74,.4);
+  display:flex; align-items:center; justify-content:center; font-size:17px;
+}
+.hist-name{font-family:'Baloo 2'; font-weight:700; font-size:13.5px;}
+.hist-date{font-size:10.5px; color:var(--ink-dim); margin-top:1px;}
+.hist-cost{margin-left:auto; font-family:'Baloo 2'; font-weight:800; font-size:12.5px; color:var(--rose-2); white-space:nowrap; display:flex; align-items:center; gap:3px;}
+.empty-state{text-align:center; margin-top:60px; color:var(--ink-dim);}
+.empty-state .icon{font-size:46px; display:block; margin:0 auto 12px; opacity:.85;}
+
+/* ===== MODALS ===== */
+.overlay{
+  position:absolute; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+  background:rgba(6,3,14,.75); backdrop-filter:blur(4px); padding:20px;
+}
+.overlay.show{display:flex;}
+.modal{
+  width:100%; max-width:340px; border-radius:26px; padding:24px 20px 20px; text-align:center; position:relative;
+  background:linear-gradient(165deg, var(--board-1) 0%, var(--bg-deep) 65%);
+  border:1px solid rgba(255,255,255,.2);
+  box-shadow:inset 0 0 0 2px rgba(243,192,74,.55), inset 0 2px 0 rgba(255,255,255,.15), 0 24px 60px rgba(0,0,0,.65), var(--glow-gold);
+  animation:popIn .3s cubic-bezier(.2,1.4,.4,1);
+}
+@keyframes popIn{from{opacity:0; transform:scale(.75) translateY(20px)} to{opacity:1; transform:scale(1) translateY(0)}}
+.modal .modal-icon{width:56px; height:56px; margin:0 auto 8px;}
+.modal h2{font-family:'Fraunces'; font-style:italic; font-weight:700; font-size:21px; margin:2px 0 6px; color:var(--gold-hi);}
+.modal p{font-size:12.5px; color:var(--ink-dim); line-height:1.55; margin:0 0 14px;}
+.modal-btn{
+  width:100%; padding:13px; border:none; border-radius:15px; margin-top:6px;
+  background:linear-gradient(160deg,var(--gold-hi),var(--gold) 55%, #d99a1e); color:#5a3300;
+  border:1px solid rgba(255,255,255,.5);
+  font-family:'Baloo 2'; font-weight:800; font-size:14.5px;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.6), inset 0 -3px 5px rgba(120,70,0,.35), 0 4px 0 var(--gold-lo);
+}
+.modal-btn:active{transform:translateY(3px); box-shadow:inset 0 1px 1px rgba(255,255,255,.6), 0 1px 0 var(--gold-lo);}
+.modal-btn.ghost{background:rgba(255,255,255,.06); color:var(--ink-dim); box-shadow:none; border:1px solid rgba(255,255,255,.18); margin-top:9px;}
+
+.wheel-wrap{position:relative; width:250px; height:250px; margin:8px auto 18px;}
+#wheelCanvas{width:100%;height:100%; filter:drop-shadow(0 10px 20px rgba(0,0,0,.55));}
+.wheel-pin{
+  position:absolute; top:-8px; left:50%; transform:translateX(-50%); z-index:3;
+  width:22px; height:26px;
+}
+.wheel-hub{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:50px; height:50px; border-radius:50%; z-index:3;
+  background:radial-gradient(circle at 34% 28%, #fff, var(--rose) 55%, var(--rose-deep) 100%);
+  border:2px solid rgba(255,255,255,.55);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.5), 0 0 16px rgba(255,91,130,.8);
+}
+.wheel-hub .icon{font-size:22px;}
+
+.confetti-layer{position:absolute; inset:0; pointer-events:none; z-index:60; overflow:hidden;}
+.confetti-piece{position:absolute; top:-10px; border-radius:2px; animation:confettiFall linear forwards;}
+@keyframes confettiFall{to{transform:translateY(720px) rotate(540deg); opacity:0;}}
+
+.toast{
+  position:absolute; left:50%; bottom:112px; transform:translateX(-50%);
+  z-index:70; display:flex; align-items:center; gap:7px;
+  background:linear-gradient(160deg, rgba(60,32,110,.95), rgba(20,10,40,.95));
+  border:1px solid rgba(243,192,74,.5);
+  color:var(--ink); font-family:'Baloo 2'; font-weight:700; font-size:13px;
+  padding:10px 18px; border-radius:15px; box-shadow:0 10px 24px rgba(0,0,0,.55);
+  opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+
+.streak-row{display:flex; justify-content:center; gap:6px; margin:6px 0 14px; flex-wrap:wrap;}
+.streak-day{
+  width:39px; height:46px; border-radius:11px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14); font-size:9.5px; font-weight:700; color:var(--ink-dim);
+}
+.streak-day.done{background:linear-gradient(160deg,var(--gold-hi),var(--gold)); color:#5a3300; border-color:rgba(255,255,255,.5);}
+.streak-day.current{border-color:var(--rose); box-shadow:0 0 10px rgba(255,91,130,.7); color:var(--ink);}
+.streak-day b{font-size:12px; margin-top:2px;}
+</style>
+</head>
+<body>
+
+<!-- ============= ICON SPRITE (custom gem-styled icons, no emoji) ============= -->
+<svg width="0" height="0" style="position:absolute">
+<defs>
+  <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff3cf"/><stop offset=".5" stop-color="#f3c04a"/><stop offset="1" stop-color="#a9700f"/>
+  </linearGradient>
+  <linearGradient id="gRose" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ffc2d4"/><stop offset=".55" stop-color="#ff5b82"/><stop offset="1" stop-color="#a8123f"/>
+  </linearGradient>
+  <linearGradient id="gSapphire" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#cdf1ff"/><stop offset=".55" stop-color="#4fc3e8"/><stop offset="1" stop-color="#12688f"/>
+  </linearGradient>
+  <linearGradient id="gCocoa" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#c98a52"/><stop offset=".55" stop-color="#7a4a24"/><stop offset="1" stop-color="#3e2411"/>
+  </linearGradient>
+  <linearGradient id="gWafer" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ffe9b8"/><stop offset="1" stop-color="#e0b56b"/>
+  </linearGradient>
+  <linearGradient id="gAmethyst" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#e6d2ff"/><stop offset=".55" stop-color="#b98af0"/><stop offset="1" stop-color="#6a2fae"/>
+  </linearGradient>
+  <linearGradient id="gEmerald" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#c7ffe8"/><stop offset=".55" stop-color="#59d9a0"/><stop offset="1" stop-color="#137a4c"/>
+  </linearGradient>
+
+  <!-- heart currency (С+М) -->
+  <symbol id="ic-heart" viewBox="0 0 32 32">
+    <path d="M16 27.3S3.6 19.6 3.6 11.6C3.6 6.9 7.3 3.2 12 3.2c2.5 0 4.7 1.1 6 3 1.3-1.9 3.5-3 6-3 4.7 0 8.4 3.7 8.4 8.4 0 8-12.4 15.7-12.4 15.7z" fill="url(#gRose)" stroke="rgba(255,255,255,.55)" stroke-width="0.6"/>
+    <path d="M9 10c1.5-1.6 4-1.8 5.6-.3" stroke="rgba(255,255,255,.55)" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <text x="16" y="19.5" font-family="Baloo 2, sans-serif" font-size="8.6" font-weight="800" fill="#fff" text-anchor="middle">С+М</text>
+  </symbol>
+
+  <!-- orb / pinball -->
+  <symbol id="ic-orb" viewBox="0 0 32 32">
+    <circle cx="16" cy="16" r="12.5" fill="url(#gSapphire)" stroke="rgba(255,255,255,.6)" stroke-width="0.8"/>
+    <ellipse cx="12" cy="11" rx="4" ry="2.6" fill="#fff" opacity="0.75"/>
+  </symbol>
+
+  <!-- gift box (daily bonus) -->
+  <symbol id="ic-gift" viewBox="0 0 32 32">
+    <rect x="5" y="13" width="22" height="14" rx="2.2" fill="url(#gRose)"/>
+    <rect x="5" y="13" width="22" height="5" fill="#a8123f" opacity=".55"/>
+    <rect x="4" y="9" width="24" height="5.5" rx="1.8" fill="url(#gGold)"/>
+    <rect x="14.3" y="9" width="3.4" height="18" fill="#fff5da" opacity=".85"/>
+    <path d="M16 9c-2-4.5-9-4.5-8 0 .6 2.6 4.6 2.4 8 0z" fill="url(#gGold)"/>
+    <path d="M16 9c2-4.5 9-4.5 8 0 -.6 2.6-4.6 2.4-8 0z" fill="url(#gGold)"/>
+  </symbol>
+
+  <!-- sparkle / bonus target -->
+  <symbol id="ic-sparkle" viewBox="0 0 32 32">
+    <path d="M16 3 C17 11 21 15 29 16 C21 17 17 21 16 29 C15 21 11 17 3 16 C11 15 15 11 16 3 Z" fill="url(#gSapphire)" stroke="rgba(255,255,255,.6)" stroke-width="0.6"/>
+    <circle cx="25" cy="7" r="2.4" fill="url(#gGold)"/>
+  </symbol>
+
+  <!-- lips (kiss) -->
+  <symbol id="ic-kiss" viewBox="0 0 32 32">
+    <path d="M6 15c2.5-3.5 7-4.8 10-4.8s7.5 1.3 10 4.8c-1.8 1.1-3.6-1-6.2-1-1.6 0-2.6.9-3.8.9s-2.2-.9-3.8-.9c-2.6 0-4.4 2.1-6.2 1z" fill="url(#gRose)" stroke="rgba(255,255,255,.5)" stroke-width="0.6"/>
+    <path d="M6 16.2c2.5 3.6 7 5 10 5s7.5-1.4 10-5c-1.8-1.2-3.6 1-6.2 1-1.6 0-2.6-1-3.8-1s-2.2 1-3.8 1c-2.6 0-4.4-2.2-6.2-1z" fill="url(#gRose)" stroke="rgba(255,255,255,.35)" stroke-width="0.6"/>
+    <ellipse cx="12" cy="14" rx="1.6" ry="0.8" fill="#fff" opacity=".55"/>
+  </symbol>
+
+  <!-- chocolate bar (kinder bueno style) -->
+  <symbol id="ic-choco" viewBox="0 0 32 32">
+    <rect x="4" y="7" width="24" height="18" rx="2.4" fill="url(#gWafer)" stroke="rgba(255,255,255,.5)" stroke-width="0.6"/>
+    <rect x="4" y="7" width="24" height="18" rx="2.4" fill="url(#gCocoa)" opacity=".78"/>
+    <g stroke="#5a3413" stroke-width="0.9" opacity=".8">
+      <line x1="11" y1="7" x2="11" y2="25"/><line x1="18" y1="7" x2="18" y2="25"/>
+      <line x1="4" y1="16" x2="28" y2="16"/>
+    </g>
+    <rect x="4" y="7" width="24" height="4" fill="#fff" opacity=".18"/>
+  </symbol>
+
+  <!-- shooting star (wish) -->
+  <symbol id="ic-star" viewBox="0 0 32 32">
+    <path d="M16 4l3.4 7.6L27 13l-6 5.4L22.6 27 16 22.6 9.4 27 11 18.4 5 13l7.6-1.4L16 4z" fill="url(#gGold)" stroke="rgba(255,255,255,.55)" stroke-width="0.6"/>
+  </symbol>
+
+  <!-- pinball flippers (game nav) -->
+  <symbol id="ic-flippers" viewBox="0 0 32 32">
+    <rect x="4" y="4" width="24" height="24" rx="7" fill="url(#gAmethyst)" opacity=".25"/>
+    <circle cx="16" cy="12" r="4.4" fill="url(#gSapphire)"/>
+    <path d="M6 24c2-4 6-5.4 9-4" stroke="url(#gGold)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+    <path d="M26 24c-2-4-6-5.4-9-4" stroke="url(#gGold)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  </symbol>
+
+  <!-- shop bag -->
+  <symbol id="ic-bag" viewBox="0 0 32 32">
+    <path d="M8 12h16l1.6 15.2a2 2 0 01-2 2.2H8.4a2 2 0 01-2-2.2L8 12z" fill="url(#gAmethyst)" stroke="rgba(255,255,255,.5)" stroke-width="0.6"/>
+    <path d="M12 12v-1.5a4 4 0 018 0V12" stroke="url(#gGold)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <circle cx="16" cy="19" r="2" fill="url(#gRose)"/>
+  </symbol>
+
+  <!-- scroll (history) -->
+  <symbol id="ic-scroll" viewBox="0 0 32 32">
+    <rect x="6" y="6" width="20" height="20" rx="3" fill="url(#gEmerald)" opacity=".9"/>
+    <rect x="9" y="10" width="14" height="2" rx="1" fill="#0d3a26" opacity=".55"/>
+    <rect x="9" y="15" width="14" height="2" rx="1" fill="#0d3a26" opacity=".45"/>
+    <rect x="9" y="20" width="9" height="2" rx="1" fill="#0d3a26" opacity=".45"/>
+  </symbol>
+
+  <!-- lock -->
+  <symbol id="ic-lock" viewBox="0 0 32 32">
+    <rect x="7" y="14" width="18" height="14" rx="3" fill="url(#gGold)"/>
+    <path d="M11 14v-3a5 5 0 0110 0v3" stroke="#a9700f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <circle cx="16" cy="20" r="2.2" fill="#5a3300"/>
+  </symbol>
+
+  <!-- ribbon (empty state) -->
+  <symbol id="ic-ribbon" viewBox="0 0 32 32">
+    <path d="M16 4c-4 0-7 3.2-7 7s3 7 7 7 7-3.2 7-7-3-7-7-7z" fill="url(#gRose)" stroke="rgba(255,255,255,.5)" stroke-width="0.6"/>
+    <path d="M12 17l-4 11 6-3 2 3 2-3 6 3-4-11" fill="url(#gAmethyst)" opacity=".85"/>
+  </symbol>
+</defs>
+</svg>
+
+<div class="app" id="app">
+  <div class="stars"></div>
+  <div class="grain"></div>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="pill">
+      <svg class="icon"><use href="#ic-heart"/></svg>
+      <span class="heart-label" id="heartsBalance">0</span>
+    </div>
+    <div class="pill ball-pill">
+      <svg class="icon"><use href="#ic-orb"/></svg>
+      <span class="heart-label" id="ballsBalance">0</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="streak-btn" id="streakBtn" title="Ежедневный бонус"><svg class="icon"><use href="#ic-gift"/></svg></button>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <section class="screen active" id="screen-game">
+    <div class="board-wrap">
+      <div class="bonus-banner">
+        <svg class="icon"><use href="#ic-sparkle"/></svg>
+        <span>Бонус-цель</span>
+        <span class="bonus-dots" id="bonusDots"></span>
+      </div>
+      <canvas id="pinCanvas"></canvas>
+    </div>
+    <div class="controls">
+      <div class="balls-left-row">
+        <span>Шариков сегодня:</span>
+        <div class="balls-track"><i id="ballsBarFill" style="width:100%"></i></div>
+      </div>
+      <button class="launch-btn" id="launchBtn">
+        <svg class="icon"><use href="#ic-orb"/></svg>
+        ЗАПУСК
+      </button>
+    </div>
+  </section>
+
+  <!-- SHOP SCREEN -->
+  <section class="screen" id="screen-shop">
+    <div class="shop-scroll">
+      <div class="shop-head"><svg class="icon"><use href="#ic-bag"/></svg>Магазин желаний</div>
+      <div class="shop-sub">Копи сердечки С+М в пинболе и обменивай их на настоящие бонусы. Каждый следующий подарок открывается после покупки предыдущего.</div>
+      <div id="shopList"></div>
+    </div>
+  </section>
+
+  <!-- HISTORY SCREEN -->
+  <section class="screen" id="screen-history">
+    <div class="hist-scroll" id="histScroll">
+      <div class="shop-head" style="margin-bottom:14px;"><svg class="icon"><use href="#ic-scroll"/></svg>Мои покупки</div>
+      <div id="histList"></div>
+    </div>
+  </section>
+
+  <!-- NAV -->
+  <div class="navbar">
+    <button class="nav-btn active" data-screen="screen-game"><svg class="icon"><use href="#ic-flippers"/></svg>Игра</button>
+    <button class="nav-btn" data-screen="screen-shop"><svg class="icon"><use href="#ic-bag"/></svg>Магазин</button>
+    <button class="nav-btn" data-screen="screen-history"><svg class="icon"><use href="#ic-scroll"/></svg>Покупки</button>
+  </div>
+
+  <!-- WHEEL OF FORTUNE MODAL -->
+  <div class="overlay" id="wheelOverlay">
+    <div class="modal">
+      <svg class="modal-icon"><use href="#ic-sparkle"/></svg>
+      <h2>Колесо фортуны</h2>
+      <p>Ты поразил(а) бонус-цель 5 раз! Крути колесо и забирай сердечки С+М.</p>
+      <div class="wheel-wrap">
+        <svg class="wheel-pin" viewBox="0 0 22 26"><path d="M11 26 L1 8 A11 11 0 0121 8 Z" fill="url(#gGold)" stroke="rgba(255,255,255,.6)" stroke-width="0.7"/></svg>
+        <canvas id="wheelCanvas" width="500" height="500"></canvas>
+        <div class="wheel-hub"><svg class="icon"><use href="#ic-heart"/></svg></div>
+      </div>
+      <button class="modal-btn" id="spinBtn">Крутить!</button>
+    </div>
+  </div>
+
+  <!-- DAILY BONUS MODAL -->
+  <div class="overlay" id="dailyOverlay">
+    <div class="modal">
+      <svg class="modal-icon"><use href="#ic-gift"/></svg>
+      <h2>С возвращением!</h2>
+      <p id="dailyText">Бонус за ежедневный визит — держи дополнительные шарики.</p>
+      <div class="streak-row" id="streakRow"></div>
+      <button class="modal-btn" id="dailyClaimBtn">Забрать бонус</button>
+    </div>
+  </div>
+
+  <!-- REWARD MODAL -->
+  <div class="overlay" id="rewardOverlay">
+    <div class="modal">
+      <svg class="modal-icon"><use href="#ic-star"/></svg>
+      <h2 id="rewardTitle">Ты выиграл(а)!</h2>
+      <p id="rewardText"></p>
+      <button class="modal-btn" id="rewardCloseBtn">Ура!</button>
+    </div>
+  </div>
+
+  <!-- PURCHASE CONFIRM MODAL -->
+  <div class="overlay" id="confirmOverlay">
+    <div class="modal">
+      <svg class="modal-icon" id="confirmIcon"><use href="#ic-heart"/></svg>
+      <h2 id="confirmTitle">Подтверди подарок</h2>
+      <p id="confirmText"></p>
+      <button class="modal-btn" id="confirmYesBtn">Подарить себе</button>
+      <button class="modal-btn ghost" id="confirmNoBtn">Не сейчас</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="confetti-layer" id="confettiLayer"></div>
+</div>
+
+<script>
+/* ============================================================
+   TELEGRAM WEBAPP INIT
+============================================================ */
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+if (tg) { tg.ready(); tg.expand(); try{ tg.setHeaderColor('#130824'); tg.setBackgroundColor('#130824'); }catch(e){} }
+function haptic(type){ if(tg && tg.HapticFeedback){ try{ type==='success'||type==='error'||type==='warning' ? tg.HapticFeedback.notificationOccurred(type) : tg.HapticFeedback.impactOccurred(type||'light'); }catch(e){} } }
+
+/* Identify the current Telegram user (available instantly from the launch
+   payload, no network call needed). Every save is namespaced to this id,
+   so two different people opening the same bot never see each other's
+   progress — even as an extra safety net on top of CloudStorage's own
+   per-user isolation. */
+const tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+const CURRENT_USER_ID = tgUser ? String(tgUser.id) : 'guest_local';
+const CURRENT_USER_NAME = tgUser ? (tgUser.first_name || 'друг') : 'друг';
+const STORAGE_KEY = 'cm_pinball_state_' + CURRENT_USER_ID;
+
+/* ============================================================
+   STORAGE LAYER (Telegram CloudStorage w/ in-memory fallback)
+   NOTE: for a production bot you'd also mirror this to your own
+   backend/database so progress survives a reinstall.
+============================================================ */
+const memoryStore = {};
+const Storage = {
+  async get(key){
+    if (tg && tg.CloudStorage){
+      return new Promise(res=>{
+        tg.CloudStorage.getItem(key, (err, val)=> res(err ? null : val));
+      });
+    }
+    return memoryStore[key] ?? null;
+  },
+  async set(key, value){
+    if (tg && tg.CloudStorage){
+      return new Promise(res=> tg.CloudStorage.setItem(key, value, ()=>res(true)));
+    }
+    memoryStore[key] = value;
+    return true;
+  }
+};
+
+/* ============================================================
+   GAME CONSTANTS
+============================================================ */
+const DAILY_BALLS = 50;
+const STREAK_BONUS = [0, 10, 30, 50, 80, 120, 180]; // index = day-in-streak (1..7), cycles after
+const BONUS_HITS_NEEDED = 5;
+// bottom buckets left -> right, rarity increases with distance from center (Galton-board style)
+const BUCKETS = [50, 5, 1, 0.5, 1, 5, 50];
+const BUCKET_COLORS = ['#ff5b82','#f3a24a','#4fc3e8','#59d9a0','#4fc3e8','#f3a24a','#ff5b82'];
+const WHEEL_SEGMENTS = [10, 20, 15, 50, 25, 100, 30, 15]; // hearts
+
+const SHOP_ITEMS = [
+  {id:'kiss1',   icon:'ic-kiss',  title:'1 поцелуй',        desc:'Один нежный поцелуй по требованию', price:60},
+  {id:'kiss10',  icon:'ic-kiss',  title:'10 поцелуев',      desc:'Целая обойма поцелуев в течение дня', price:450},
+  {id:'kiss50',  icon:'ic-kiss',  title:'50 поцелуев',      desc:'Море нежности — используй как хочешь', price:1800},
+  {id:'kiss100', icon:'ic-kiss',  title:'100 поцелуев',     desc:'Безлимит нежности на особый повод', price:3200},
+  {id:'bueno1',  icon:'ic-choco', title:'Kinder Bueno',     desc:'Один батончик — просто потому что', price:5200},
+  {id:'bueno3',  icon:'ic-choco', title:'3× Kinder Bueno',  desc:'Целая пачка сладкого счастья', price:13500},
+  {id:'wish',    icon:'ic-star',  title:'Любое желание',    desc:'Одно желание, которое я исполню без вопросов', price:26000},
+];
+
+/* ============================================================
+   STATE
+============================================================ */
+let state = {
+  hearts: 0,
+  ballsLeft: DAILY_BALLS,
+  lastPlayDate: null,   // YYYY-MM-DD
+  streakDay: 0,         // 1..7
+  bonusHits: 0,
+  purchased: {},        // id -> count
+  history: [],           // {id,title,icon,price,date}
+};
+
+async function loadState(){
+  const raw = await Storage.get(STORAGE_KEY);
+  if (raw){ try{ state = Object.assign(state, JSON.parse(raw)); }catch(e){} }
+}
+async function saveState(){
+  await Storage.set(STORAGE_KEY, JSON.stringify(state));
+}
+
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+
+/* ============================================================
+   UI HELPERS
+============================================================ */
+const $ = sel => document.querySelector(sel);
+function fmt(n){ return n.toLocaleString('ru-RU'); }
+function svgIcon(id){ return `<svg class="icon"><use href="#${id}"/></svg>`; }
+
+function refreshTop(){
+  $('#heartsBalance').textContent = fmt(state.hearts);
+  $('#ballsBalance').textContent = state.ballsLeft;
+  $('#ballsBarFill').style.width = Math.max(0, Math.min(100, (state.ballsLeft/DAILY_BALLS)*100)) + '%';
+  $('#launchBtn').disabled = state.ballsLeft <= 0;
+  renderBonusDots();
+}
+function renderBonusDots(){
+  const wrap = $('#bonusDots'); wrap.innerHTML='';
+  for(let i=0;i<BONUS_HITS_NEEDED;i++){
+    const s = document.createElement('span');
+    if (i < (state.bonusHits % BONUS_HITS_NEEDED)) s.classList.add('on');
+    wrap.appendChild(s);
+  }
+}
+function toast(msg, iconId){
+  const t = $('#toast');
+  t.innerHTML = (iconId ? svgIcon(iconId) : '') + '<span>'+msg+'</span>';
+  t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=> t.classList.remove('show'), 1800);
+}
+function floatText(x, y, text, color){
+  const board = $('.board-wrap');
+  const f = document.createElement('div');
+  f.className='floater'; f.textContent=text; f.style.left=x+'px'; f.style.top=y+'px';
+  if(color) f.style.color = color;
+  board.appendChild(f);
+  setTimeout(()=> f.remove(), 1150);
+}
+function confettiBurst(){
+  const layer = $('#confettiLayer');
+  const colors = ['#ff5b82','#f3c04a','#4fc3e8','#fff3cf','#f3a24a','#59d9a0','#b98af0'];
+  for(let i=0;i<45;i++){
+    const p = document.createElement('div');
+    p.className='confetti-piece';
+    const size = 5 + Math.random()*6;
+    p.style.width = size+'px'; p.style.height=(size*.6)+'px';
+    p.style.left = Math.random()*100+'%';
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDuration = (1.6 + Math.random()*1.2)+'s';
+    p.style.animationDelay = (Math.random()*.3)+'s';
+    layer.appendChild(p);
+    setTimeout(()=>p.remove(), 3200);
+  }
+}
+
+/* ---- Navigation ---- */
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    haptic('light');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    $('#'+btn.dataset.screen).classList.add('active');
+    if(btn.dataset.screen==='screen-shop') renderShop();
+    if(btn.dataset.screen==='screen-history') renderHistory();
+  });
+});
+
+/* ============================================================
+   SHOP
+============================================================ */
+function renderShop(){
+  const list = $('#shopList'); list.innerHTML='';
+  SHOP_ITEMS.forEach((item, idx)=>{
+    const unlocked = idx===0 || (state.purchased[SHOP_ITEMS[idx-1].id] > 0);
+    const card = document.createElement('div');
+    card.className = 'item-card' + (unlocked ? '' : ' locked');
+    card.innerHTML = `
+      <div class="item-emoji">${svgIcon(item.icon)}</div>
+      <div class="item-info">
+        <div class="item-title">${item.title}</div>
+        <div class="item-desc">${item.desc}</div>
+      </div>
+      <button class="item-buy" ${(!unlocked || state.hearts<item.price) ? 'disabled' : ''} data-id="${item.id}">
+        ${svgIcon('ic-heart')} ${fmt(item.price)}
+        <small>${state.purchased[item.id] ? 'куплено '+state.purchased[item.id]+'×' : ''}</small>
+      </button>
+      ${!unlocked ? `<div class="lock-badge">${svgIcon('ic-lock')} Открой предыдущий подарок</div>` : ''}
+    `;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.item-buy').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if(b.disabled) return;
+      openConfirm(b.dataset.id);
+    });
+  });
+}
+
+let pendingItemId = null;
+function openConfirm(id){
+  const item = SHOP_ITEMS.find(i=>i.id===id);
+  pendingItemId = id;
+  $('#confirmIcon').innerHTML = `<use href="#${item.icon}"/>`;
+  $('#confirmTitle').textContent = 'Подтверди подарок';
+  $('#confirmText').textContent = `Потратить ${fmt(item.price)} сердечек С+М на «${item.title}»?`;
+  $('#confirmOverlay').classList.add('show');
+}
+$('#confirmNoBtn').addEventListener('click', ()=> $('#confirmOverlay').classList.remove('show'));
+$('#confirmYesBtn').addEventListener('click', async ()=>{
+  const item = SHOP_ITEMS.find(i=>i.id===pendingItemId);
+  if(!item || state.hearts < item.price) { $('#confirmOverlay').classList.remove('show'); return; }
+  state.hearts -= item.price;
+  state.purchased[item.id] = (state.purchased[item.id]||0) + 1;
+  state.history.unshift({id:item.id, title:item.title, icon:item.icon, price:item.price, date:new Date().toISOString()});
+  await saveState();
+  $('#confirmOverlay').classList.remove('show');
+  haptic('success');
+  confettiBurst();
+  toast(`Подарок «${item.title}» куплен!`, item.icon);
+  refreshTop(); renderShop();
+});
+
+/* ============================================================
+   HISTORY
+============================================================ */
+function renderHistory(){
+  const list = $('#histList');
+  if(!state.history.length){
+    list.innerHTML = `<div class="empty-state">${svgIcon('ic-ribbon')}Пока пусто.<br>Зарабатывай сердечки С+М в пинболе и балуй себя подарками!</div>`;
+    return;
+  }
+  list.innerHTML = state.history.map(h=>{
+    const d = new Date(h.date);
+    const ds = d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit', year:'2-digit'}) + ' · ' + d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    return `<div class="hist-item">
+      <div class="hist-emoji">${svgIcon(h.icon||'ic-heart')}</div>
+      <div><div class="hist-name">${h.title}</div><div class="hist-date">${ds}</div></div>
+      <div class="hist-cost">-${fmt(h.price)} ${svgIcon('ic-heart')}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   DAILY BONUS
+============================================================ */
+async function checkDailyBonus(){
+  const today = todayStr();
+  if (state.lastPlayDate === today) return;
+  const wasFirstEver = !state.lastPlayDate;
+  state.streakDay = wasFirstEver ? 1 : (state.streakDay % 7) + 1;
+  state.lastPlayDate = today;
+  state.ballsLeft = DAILY_BALLS;
+  const bonus = STREAK_BONUS[state.streakDay] || STREAK_BONUS[STREAK_BONUS.length-1];
+  state.ballsLeft += bonus;
+  await saveState();
+  showDailyModal(bonus);
+}
+function showDailyModal(bonus){
+  $('#dailyText').textContent = `Привет, ${CURRENT_USER_NAME}! День ${state.streakDay} подряд — сегодня доступно ${DAILY_BALLS} базовых шариков + ${bonus} бонусных.`;
+  const row = $('#streakRow'); row.innerHTML='';
+  for(let i=1;i<=7;i++){
+    const d = document.createElement('div');
+    d.className='streak-day' + (i<state.streakDay?' done':'') + (i===state.streakDay?' current':'');
+    d.innerHTML = `${i}д<b>+${STREAK_BONUS[i]}</b>`;
+    row.appendChild(d);
+  }
+  $('#dailyOverlay').classList.add('show');
+}
+$('#dailyClaimBtn').addEventListener('click', ()=>{
+  $('#dailyOverlay').classList.remove('show');
+  haptic('success'); refreshTop();
+});
+$('#streakBtn').addEventListener('click', ()=>{
+  showDailyModal(STREAK_BONUS[state.streakDay] || STREAK_BONUS[1]);
+});
+
+/* ============================================================
+   PINBALL PHYSICS (matter.js)
+============================================================ */
+const { Engine, World, Bodies, Body, Events, Composite } = Matter;
+let engine, world, canvas, ctx, W, H;
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [];
+let balls = [];
+
+function initPhysics(){
+  canvas = $('#pinCanvas');
+  ctx = canvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  engine = Engine.create();
+  engine.gravity.y = 1.05;
+  world = engine.world;
+
+  buildBoard();
+  Events.on(engine, 'collisionStart', onCollision);
+
+  (function loop(){
+    Engine.update(engine, 1000/60);
+    render();
+    requestAnimationFrame(loop);
+  })();
+}
+
+function resizeCanvas(){
+  const wrap = $('.board-wrap');
+  const rect = wrap.getBoundingClientRect();
+  W = canvas.width = Math.round(rect.width);
+  H = canvas.height = Math.round(rect.height);
+  if (world) { Composite.clear(world, false); buildBoard(); }
+}
+
+function buildBoard(){
+  pegs = []; bucketSensors = []; walls = [];
+  const wallOpts = { isStatic:true, restitution:0.35, friction:0.05, render:{visible:false} };
+
+  walls.push(Bodies.rectangle(-10, H/2, 20, H*2, wallOpts));
+  walls.push(Bodies.rectangle(W+10, H/2, 20, H*2, wallOpts));
+  walls.push(Bodies.rectangle(W/2, -10, W*2, 20, wallOpts));
+
+  const topMargin = H*0.14, bottomMargin = H*0.62;
+  const rows = 9;
+  const rowGap = (bottomMargin-topMargin)/rows;
+  const pegR = Math.max(3, W*0.014);
+  for(let r=0;r<rows;r++){
+    const y = topMargin + r*rowGap;
+    const cols = 5 + (r%2===0 ? 0 : 1);
+    const usableW = W*0.78;
+    const startX = (W-usableW)/2 + (r%2===0 ? usableW/(cols)/2 : 0);
+    const gapX = usableW/cols;
+    for(let c=0;c<cols;c++){
+      const x = startX + c*gapX;
+      if (x < W*0.08 || x > W*0.92) continue;
+      const peg = Bodies.circle(x, y, pegR, { isStatic:true, restitution:0.65, friction:0.02, label:'peg' });
+      pegs.push(peg);
+    }
+  }
+
+  bonusSensor = Bodies.circle(W/2, H*0.30, Math.max(10,W*0.05), { isStatic:true, isSensor:true, label:'bonus' });
+
+  const guideOpts = { isStatic:true, restitution:0.3, render:{visible:false} };
+  const guideY = bottomMargin + H*0.02;
+  walls.push(Bodies.rectangle(W*0.12, guideY, W*0.02, H*0.22, {...guideOpts, angle: 0.35}));
+  walls.push(Bodies.rectangle(W*0.88, guideY, W*0.02, H*0.22, {...guideOpts, angle: -0.35}));
+
+  const bucketTop = H*0.86;
+  const n = BUCKETS.length;
+  const bw = W/n;
+  bucketSensors = [];
+  for(let i=0;i<=n;i++){
+    walls.push(Bodies.rectangle(i*bw, bucketTop + H*0.07, 4, H*0.16, {isStatic:true, friction:0.05, render:{visible:false}}));
+  }
+  for(let i=0;i<n;i++){
+    const sensor = Bodies.rectangle(i*bw + bw/2, bucketTop + H*0.11, bw-6, 10, { isStatic:true, isSensor:true, label:'bucket_'+i });
+    bucketSensors.push(sensor);
+  }
+  walls.push(Bodies.rectangle(W/2, H+10, W*2, 20, {isStatic:true, render:{visible:false}}));
+
+  World.add(world, [...walls, ...pegs, bonusSensor, ...bucketSensors]);
+}
+
+function spawnBall(x){
+  if (!x) x = W/2 + (Math.random()*40-20);
+  x = Math.max(W*0.1, Math.min(W*0.9, x));
+  const r = Math.max(6, W*0.024);
+  const ball = Bodies.circle(x, H*0.06, r, {
+    restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
+  });
+  Body.setVelocity(ball, {x:(Math.random()*2-1)*1.2, y:1});
+  World.add(world, ball);
+  balls.push(ball);
+  haptic('light');
+}
+
+function onCollision(ev){
+  ev.pairs.forEach(pair=>{
+    const ball = pair.bodyA.label==='ball' ? pair.bodyA : (pair.bodyB.label==='ball' ? pair.bodyB : null);
+    if(!ball) return;
+    const other = pair.bodyA.label==='ball' ? pair.bodyB : pair.bodyA;
+
+    if (other.label === 'bonus'){
+      handleBonusHit(ball);
+    } else if (other.label && other.label.startsWith('bucket_')){
+      const idx = parseInt(other.label.split('_')[1]);
+      handleBucketLand(ball, idx);
+    }
+  });
+}
+
+async function handleBonusHit(ball){
+  if (ball._bonusHitCooldown) return;
+  ball._bonusHitCooldown = true;
+  setTimeout(()=> ball._bonusHitCooldown=false, 600);
+  state.bonusHits++;
+  renderBonusDots();
+  haptic('medium');
+  floatText(ball.position.x, ball.position.y, 'Бонус!', '#4fc3e8');
+  if (state.bonusHits % BONUS_HITS_NEEDED === 0){
+    await saveState();
+    setTimeout(()=> openWheel(), 500);
+  } else {
+    await saveState();
+  }
+}
+
+async function handleBucketLand(ball, idx){
+  if (ball._landed) return;
+  ball._landed = true;
+  const mult = BUCKETS[idx];
+  const reward = Math.max(1, Math.round(mult*2));
+  state.hearts += reward;
+  await saveState();
+  refreshTop();
+  floatText(ball.position.x, ball.position.y-10, `+${reward} (x${mult})`, BUCKET_COLORS[idx]);
+  haptic(mult>=50?'success':'light');
+  World.remove(world, ball);
+  balls = balls.filter(b=>b!==ball);
+}
+
+/* --- premium canvas rendering: metallic pegs, faceted gem ball, jeweled bonus target --- */
+function render(){
+  if(!ctx) return;
+  ctx.clearRect(0,0,W,H);
+
+  // pegs — metallic gold with specular highlight
+  pegs.forEach(p=>{
+    const r = p.circleRadius;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(p.position.x, p.position.y, r, 0, Math.PI*2);
+    const g = ctx.createRadialGradient(p.position.x-r*0.35,p.position.y-r*0.4,0,p.position.x,p.position.y,r*1.3);
+    g.addColorStop(0,'#fff8e0'); g.addColorStop(0.4,'#f3c04a'); g.addColorStop(1,'#7a5108');
+    ctx.fillStyle = g;
+    ctx.shadowColor = 'rgba(243,192,74,.65)'; ctx.shadowBlur = 7;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(p.position.x-r*0.3,p.position.y-r*0.35,r*0.32,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,.85)'; ctx.fill();
+    ctx.restore();
+  });
+
+  // bonus sensor — faceted sapphire gem
+  if (bonusSensor){
+    const pulse = 1 + Math.sin(Date.now()/220)*0.09;
+    const r = bonusSensor.circleRadius*pulse;
+    const cx = bonusSensor.position.x, cy = bonusSensor.position.y;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r*1.6, 0, Math.PI*2);
+    const glow = ctx.createRadialGradient(cx,cy,0,cx,cy,r*1.6);
+    glow.addColorStop(0,'rgba(79,195,232,.5)'); glow.addColorStop(1,'rgba(79,195,232,0)');
+    ctx.fillStyle = glow; ctx.fill();
+    // faceted diamond shape
+    ctx.beginPath();
+    for(let i=0;i<6;i++){
+      const a = -Math.PI/2 + i*Math.PI/3;
+      const px = cx + Math.cos(a)*r, py = cy + Math.sin(a)*r;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    const fg = ctx.createLinearGradient(cx,cy-r,cx,cy+r);
+    fg.addColorStop(0,'#cdf1ff'); fg.addColorStop(0.55,'#4fc3e8'); fg.addColorStop(1,'#12688f');
+    ctx.fillStyle = fg;
+    ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=1.4;
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  // bucket zones with jeweled label chip
+  const n = BUCKETS.length, bw = W/n;
+  bucketSensors.forEach((s,i)=>{
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = BUCKET_COLORS[i];
+    ctx.fillRect(i*bw+3, s.position.y-18, bw-6, 40);
+    ctx.globalAlpha = 1;
+    const chipW = Math.min(bw-8, W*0.09), chipH = 20;
+    const cx = i*bw+bw/2, cy = s.position.y;
+    roundRect(ctx, cx-chipW/2, cy-chipH/2, chipW, chipH, 8);
+    const cg = ctx.createLinearGradient(0,cy-chipH/2,0,cy+chipH/2);
+    cg.addColorStop(0, shadeColor(BUCKET_COLORS[i], 30));
+    cg.addColorStop(1, shadeColor(BUCKET_COLORS[i], -25));
+    ctx.fillStyle = cg;
+    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1;
+    ctx.fill(); ctx.stroke();
+    ctx.font = `800 ${Math.max(10,W*0.032)}px Baloo 2`;
+    ctx.fillStyle = '#1a0d33';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('x'+BUCKETS[i], cx, cy+0.5);
+    ctx.restore();
+  });
+
+  // balls — faceted heart-gem
+  balls.forEach(b=>{
+    ctx.save();
+    ctx.translate(b.position.x, b.position.y);
+    ctx.rotate(b.angle);
+    const r = b.circleRadius;
+    ctx.beginPath(); ctx.arc(0,0,r*1.5,0,Math.PI*2);
+    const glow = ctx.createRadialGradient(0,0,0,0,0,r*1.5);
+    glow.addColorStop(0,'rgba(255,91,130,.55)'); glow.addColorStop(1,'rgba(255,91,130,0)');
+    ctx.fillStyle=glow; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+    const g = ctx.createRadialGradient(-r*0.3,-r*0.35,0,0,0,r*1.3);
+    g.addColorStop(0,'#fff'); g.addColorStop(0.35,'#ffc2d4'); g.addColorStop(0.75,'#ff5b82'); g.addColorStop(1,'#a8123f');
+    ctx.fillStyle=g; ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(-r*0.32,-r*0.35,r*0.28,r*0.16,-0.6,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fill();
+    ctx.restore();
+  });
+}
+function roundRect(c,x,y,w,h,r){
+  c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+function shadeColor(hex, pct){
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)+Math.round(255*pct/100), g=(n>>8&0xff)+Math.round(255*pct/100), b=(n&0xff)+Math.round(255*pct/100);
+  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+  return `rgb(${r},${g},${b})`;
+}
+
+$('#launchBtn').addEventListener('click', ()=> attemptLaunch());
+$('#pinCanvas').addEventListener('pointerdown', (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  attemptLaunch(e.clientX - rect.left);
+});
+async function attemptLaunch(x){
+  if (state.ballsLeft <= 0){ toast('Шарики закончились — приходи завтра!', 'ic-gift'); return; }
+  state.ballsLeft--;
+  await saveState();
+  refreshTop();
+  spawnBall(x);
+}
+
+/* ============================================================
+   WHEEL OF FORTUNE
+============================================================ */
+let wheelRotation = 0, wheelSpinning = false;
+function drawWheel(){
+  const wc = $('#wheelCanvas'); const wctx = wc.getContext('2d');
+  const cx = wc.width/2, cy = wc.height/2, r = wc.width/2 - 12;
+  const n = WHEEL_SEGMENTS.length, seg = Math.PI*2/n;
+  const colors = ['#ff5b82','#f3c04a','#4fc3e8','#59d9a0','#f3a24a','#b98af0','#ff8fab','#7fd8f5'];
+  wctx.clearRect(0,0,wc.width,wc.height);
+
+  // outer rim
+  wctx.beginPath(); wctx.arc(cx,cy,r+8,0,Math.PI*2);
+  const rim = wctx.createLinearGradient(0,cy-r,0,cy+r);
+  rim.addColorStop(0,'#fff3cf'); rim.addColorStop(0.5,'#f3c04a'); rim.addColorStop(1,'#a9700f');
+  wctx.fillStyle = rim; wctx.fill();
+
+  wctx.save();
+  wctx.translate(cx,cy); wctx.rotate(wheelRotation);
+  for(let i=0;i<n;i++){
+    wctx.beginPath();
+    wctx.moveTo(0,0);
+    wctx.arc(0,0,r, i*seg, (i+1)*seg);
+    wctx.closePath();
+    const sg = wctx.createRadialGradient(0,0,0,0,0,r);
+    sg.addColorStop(0, shadeColor(colors[i%colors.length], 25));
+    sg.addColorStop(1, colors[i%colors.length]);
+    wctx.fillStyle = sg;
+    wctx.fill();
+    wctx.strokeStyle = '#150a29'; wctx.lineWidth=5; wctx.stroke();
+    wctx.save();
+    wctx.rotate(i*seg + seg/2);
+    wctx.textAlign='right';
+    wctx.fillStyle='rgba(0,0,0,.75)';
+    wctx.font='800 34px Baloo 2';
+    wctx.fillText('+'+WHEEL_SEGMENTS[i], r-16, 12);
+    wctx.fillStyle='#fff';
+    wctx.fillText('+'+WHEEL_SEGMENTS[i], r-18, 10);
+    wctx.restore();
+  }
+  wctx.restore();
+
+  // center rim ring
+  wctx.beginPath(); wctx.arc(cx,cy,46,0,Math.PI*2);
+  wctx.strokeStyle='rgba(255,255,255,.5)'; wctx.lineWidth=3; wctx.stroke();
+}
+function openWheel(){
+  wheelRotation = 0; drawWheel();
+  $('#wheelOverlay').classList.add('show');
+}
+$('#spinBtn').addEventListener('click', async ()=>{
+  if (wheelSpinning) return;
+  wheelSpinning = true;
+  $('#spinBtn').disabled = true;
+  const n = WHEEL_SEGMENTS.length, seg = Math.PI*2/n;
+  const winIdx = Math.floor(Math.random()*n);
+  const targetSegCenter = winIdx*seg + seg/2;
+  const spins = 5 + Math.random()*2;
+  const finalRotation = spins*Math.PI*2 + (Math.PI*2 - targetSegCenter) - Math.PI/2;
+  const start = performance.now();
+  const duration = 3600;
+  const startRot = wheelRotation % (Math.PI*2);
+  function animate(t){
+    const p = Math.min(1, (t-start)/duration);
+    const ease = 1 - Math.pow(1-p, 4);
+    wheelRotation = startRot + (finalRotation - startRot)*ease;
+    drawWheel();
+    if(p<1){ requestAnimationFrame(animate); }
+    else finishSpin(winIdx);
+  }
+  requestAnimationFrame(animate);
+});
+async function finishSpin(winIdx){
+  const reward = WHEEL_SEGMENTS[winIdx];
+  state.hearts += reward;
+  await saveState();
+  refreshTop();
+  haptic('success');
+  $('#wheelOverlay').classList.remove('show');
+  $('#spinBtn').disabled = false;
+  wheelSpinning = false;
+  $('#rewardTitle').textContent = 'Колесо фортуны';
+  $('#rewardText').textContent = `Тебе выпало +${reward} сердечек С+М!`;
+  $('#rewardOverlay').classList.add('show');
+  confettiBurst();
+}
+$('#rewardCloseBtn').addEventListener('click', ()=> $('#rewardOverlay').classList.remove('show'));
+
+/* ============================================================
+   BOOT
+============================================================ */
+(async function boot(){
+  await loadState();
+  refreshTop();
+  await checkDailyBonus();
+  refreshTop();
+  initPhysics();
+})();
+</script>
+</body>
+</html>
