@@ -873,7 +873,7 @@ function buildBoard(){
   walls.push(Bodies.rectangle(wallX, (archCenterY+H)/2, Math.max(7,W*0.025), H-archCenterY, wallOpts));
   walls.push(Bodies.rectangle(rightX, (archCenterY+H)/2, Math.max(7,W*0.025), H-archCenterY, wallOpts));
 
-  const laneLeft = W*0.78, laneRight = W*0.94;
+  const laneLeft = W*0.78;
   launcherParts.push(Bodies.rectangle(laneLeft, (archCenterY+H)/2, Math.max(7,W*0.02), H-archCenterY, {
     isStatic:true, restitution:0.08, friction:0.02, label:'launcher', render:{visible:false}
   }));
@@ -1049,16 +1049,12 @@ function render(){
   if(launcherParts.length){
     const laneTop = H*0.30, laneBottom = H*0.95;
     ctx.save();
-    ctx.fillStyle = 'rgba(10,5,28,.55)';
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
-    ctx.lineWidth = Math.max(2,W*0.009);
+    ctx.lineWidth = Math.max(4,W*0.02);
+    ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(W*0.78,laneBottom);
-    ctx.lineTo(W*0.94,laneBottom);
-    ctx.lineTo(W*0.94,laneTop);
     ctx.lineTo(W*0.78,laneTop);
-    ctx.closePath();
-    ctx.fill();
     ctx.stroke();
     ctx.restore();
   }
