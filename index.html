@@ -865,15 +865,15 @@ function buildBoard(){
   walls.push(Bodies.rectangle(W/2, -10, W*2, 20, wallOpts));
 
   archLayout = [
-    {points:[[W*0.24,H*0.43],[W*0.29,H*0.39],[W*0.35,H*0.35],[W*0.42,H*0.33]]},
-    {points:[[W*0.58,H*0.33],[W*0.65,H*0.35],[W*0.71,H*0.39],[W*0.76,H*0.43]]},
-    {points:[[W*0.27,H*0.53],[W*0.38,H*0.57],[W*0.50,H*0.59],[W*0.62,H*0.57],[W*0.73,H*0.53]]}
+    {points:[[W*0.32,H*0.40],[W*0.35,H*0.37],[W*0.39,H*0.35],[W*0.44,H*0.34]]},
+    {points:[[W*0.56,H*0.34],[W*0.61,H*0.35],[W*0.65,H*0.37],[W*0.68,H*0.40]]},
+    {points:[[W*0.37,H*0.47],[W*0.43,H*0.49],[W*0.50,H*0.50],[W*0.57,H*0.49],[W*0.63,H*0.47]]}
   ];
   archLayout.forEach(arch=>{
     for(let i=0;i<arch.points.length-1;i++){
       const [x1,y1] = arch.points[i], [x2,y2] = arch.points[i+1];
       const length = Math.hypot(x2-x1,y2-y1);
-      const part = Bodies.rectangle((x1+x2)/2, (y1+y2)/2, length, Math.max(7,W*0.025), {
+      const part = Bodies.rectangle((x1+x2)/2, (y1+y2)/2, length, Math.max(6,W*0.02), {
         isStatic:true, restitution:0.62, friction:0.03, angle:Math.atan2(y2-y1,x2-x1),
         label:'arch', render:{visible:false}
       });
@@ -899,7 +899,7 @@ function buildBoard(){
     }
   }
 
-  bonusSensor = Bodies.circle(W/2, H*0.30, Math.max(10,W*0.05), { isStatic:true, isSensor:true, label:'bonus' });
+  bonusSensor = Bodies.circle(W/2, H*0.40, Math.max(10,W*0.04), { isStatic:true, isSensor:true, label:'bonus' });
 
   const guideOpts = { isStatic:true, restitution:0.3, render:{visible:false} };
   const guideY = bottomMargin + H*0.02;
@@ -1030,7 +1030,7 @@ function render(){
   if(archParts.length){
     ctx.save();
     ctx.strokeStyle = '#d6d2d0';
-    ctx.lineWidth = Math.max(8, W*0.035);
+    ctx.lineWidth = Math.max(6, W*0.025);
     ctx.lineCap = 'round';
     ctx.shadowColor = 'rgba(15,5,25,.85)';
     ctx.shadowBlur = 5;
@@ -1040,10 +1040,10 @@ function render(){
       arch.points.slice(1).forEach(point=>ctx.lineTo(point[0],point[1]));
       ctx.stroke();
       ctx.strokeStyle = '#f5f3f0';
-      ctx.lineWidth = Math.max(2, W*0.012);
+      ctx.lineWidth = Math.max(1, W*0.008);
       ctx.stroke();
       ctx.strokeStyle = '#d6d2d0';
-      ctx.lineWidth = Math.max(8, W*0.035);
+      ctx.lineWidth = Math.max(6, W*0.025);
     });
     ctx.shadowBlur = 0;
     ctx.restore();
