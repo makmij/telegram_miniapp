@@ -498,11 +498,11 @@ html,body{
     <div class="modal">
       <svg class="modal-icon"><use href="#ic-sparkle"/></svg>
       <h2>Колесо фортуны</h2>
-      <p>Ты поразил(а) бонус-цель 5 раз! Крути колесо и забирай сердечки С+М.</p>
+      <p>Ты поразил(а) бонус-цель 5 раз! Крути колесо и получай дополнительные шарики.</p>
       <div class="wheel-wrap">
         <svg class="wheel-pin" viewBox="0 0 22 26"><path d="M11 26 L1 8 A11 11 0 0121 8 Z" fill="url(#gGold)" stroke="rgba(255,255,255,.6)" stroke-width="0.7"/></svg>
         <canvas id="wheelCanvas" width="500" height="500"></canvas>
-        <div class="wheel-hub"><svg class="icon"><use href="#ic-heart"/></svg></div>
+        <div class="wheel-hub"><svg class="icon"><use href="#ic-orb"/></svg></div>
       </div>
       <button class="modal-btn" id="spinBtn">Крутить!</button>
     </div>
@@ -600,7 +600,7 @@ const GLOBAL_BALL_GRANT_ID = 'grant_2026_08_25_01';
 // bottom buckets left -> right, rarity increases with distance from center (Galton-board style)
 const BUCKETS = [50, 5, 1, 0.5, 1, 5, 50];
 const BUCKET_COLORS = ['#ff5b82','#f3a24a','#4fc3e8','#59d9a0','#4fc3e8','#f3a24a','#ff5b82'];
-const WHEEL_SEGMENTS = [10, 20, 15, 50, 25, 100, 30, 15]; // hearts
+const WHEEL_SEGMENTS = [10, 20, 15, 50, 25, 100, 30, 15]; // balls
 
 const SHOP_ITEMS = [
   {id:'kiss1',   icon:'ic-kiss',  title:'1 поцелуй',        desc:'Один нежный поцелуй по требованию', price:60},
@@ -1145,7 +1145,7 @@ function drawWheel(){
     wctx.rotate(i*seg + seg/2);
     wctx.textAlign='right';
     wctx.fillStyle='rgba(0,0,0,.75)';
-    wctx.font='800 34px Baloo 2';
+    wctx.font='800 42px Baloo 2';
     wctx.fillText('+'+WHEEL_SEGMENTS[i], r-16, 12);
     wctx.fillStyle='#fff';
     wctx.fillText('+'+WHEEL_SEGMENTS[i], r-18, 10);
@@ -1185,14 +1185,14 @@ $('#spinBtn').addEventListener('click', async ()=>{
 });
 async function finishSpin(winIdx){
   const reward = WHEEL_SEGMENTS[winIdx];
-  state.hearts += reward;
+  state.ballsLeft += reward;
   refreshTop();
   haptic('success');
   $('#wheelOverlay').classList.remove('show');
   $('#spinBtn').disabled = false;
   wheelSpinning = false;
   $('#rewardTitle').textContent = 'Колесо фортуны';
-  $('#rewardText').textContent = `Тебе выпало +${reward} сердечек С+М!`;
+  $('#rewardText').textContent = `Тебе выпало +${reward} шариков!`;
   $('#rewardOverlay').classList.add('show');
   confettiBurst();
   void saveState();
