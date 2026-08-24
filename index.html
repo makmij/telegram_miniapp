@@ -855,7 +855,7 @@ function buildBoard(){
   walls.push(Bodies.rectangle(W+10, H/2, 20, H*2, wallOpts));
   walls.push(Bodies.rectangle(W/2, -10, W*2, 20, wallOpts));
 
-  const archCenterX = W/2, archCenterY = H*0.27, archRadius = W*0.28;
+  const archCenterX = W/2, archCenterY = H*0.36, archRadius = W*0.18;
   const archSegments = 11;
   for(let i=0;i<archSegments;i++){
     const angle = Math.PI + (Math.PI*i)/(archSegments-1);
@@ -1017,7 +1017,7 @@ function render(){
   if(archParts.length){
     ctx.save();
     ctx.beginPath();
-    ctx.arc(W/2, H*0.27, W*0.28, Math.PI, Math.PI*2);
+    ctx.arc(W/2, H*0.36, W*0.18, Math.PI, Math.PI*2);
     ctx.strokeStyle = '#f3c04a';
     ctx.lineWidth = Math.max(4, W*0.035);
     ctx.lineCap = 'round';
