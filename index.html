@@ -571,15 +571,18 @@ const memoryStore = {};
 const Storage = {
   async get(key){
     if (tg && tg.CloudStorage){
-      return new Promise(res=>{
+      return Promise.race([new Promise(res=>{
         tg.CloudStorage.getItem(key, (err, val)=> res(err ? null : val));
-      });
+      }), new Promise(res=>setTimeout(()=>res(null), 1200))]);
     }
     return memoryStore[key] ?? null;
   },
   async set(key, value){
     if (tg && tg.CloudStorage){
-      return new Promise(res=> tg.CloudStorage.setItem(key, value, ()=>res(true)));
+      return Promise.race([
+        new Promise(res=> tg.CloudStorage.setItem(key, value, ()=>res(true))),
+        new Promise(res=>setTimeout(()=>res(false), 1200))
+      ]);
     }
     memoryStore[key] = value;
     return true;
@@ -813,7 +816,7 @@ $('#streakBtn').addEventListener('click', ()=>{
 ============================================================ */
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 let engine, world, canvas, ctx, W, H;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [];
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], archParts = [];
 let balls = [];
 
 function initPhysics(){
@@ -845,12 +848,25 @@ function resizeCanvas(){
 }
 
 function buildBoard(){
-  pegs = []; bucketSensors = []; walls = [];
+  pegs = []; bucketSensors = []; walls = []; archParts = [];
   const wallOpts = { isStatic:true, restitution:0.35, friction:0.05, render:{visible:false} };
 
   walls.push(Bodies.rectangle(-10, H/2, 20, H*2, wallOpts));
   walls.push(Bodies.rectangle(W+10, H/2, 20, H*2, wallOpts));
   walls.push(Bodies.rectangle(W/2, -10, W*2, 20, wallOpts));
+
+  const archCenterX = W/2, archCenterY = H*0.27, archRadius = W*0.28;
+  const archSegments = 11;
+  for(let i=0;i<archSegments;i++){
+    const angle = Math.PI + (Math.PI*i)/(archSegments-1);
+    const x = archCenterX + Math.cos(angle)*archRadius;
+    const y = archCenterY + Math.sin(angle)*archRadius;
+    const part = Bodies.rectangle(x, y, W*0.105, W*0.035, {
+      isStatic:true, restitution:0.62, friction:0.03, angle:angle + Math.PI/2,
+      label:'arch', render:{visible:false}
+    });
+    archParts.push(part);
+  }
 
   const topMargin = H*0.14, bottomMargin = H*0.62;
   const rows = 9;
@@ -890,7 +906,7 @@ function buildBoard(){
   }
   walls.push(Bodies.rectangle(W/2, H+10, W*2, 20, {isStatic:true, render:{visible:false}}));
 
-  World.add(world, [...walls, ...pegs, bonusSensor, ...bucketSensors]);
+  World.add(world, [...walls, ...pegs, ...archParts, bonusSensor, ...bucketSensors]);
 }
 
 function spawnBall(x){
@@ -943,12 +959,12 @@ async function handleBucketLand(ball, idx){
   const mult = BUCKETS[idx];
   const reward = Math.max(1, Math.round(mult*2));
   state.hearts += reward;
-  await saveState();
+  World.remove(world, ball);
+  balls = balls.filter(b=>b!==ball);
+  void saveState();
   refreshTop();
   floatText(ball.position.x, ball.position.y-10, `+${reward} (x${mult})`, BUCKET_COLORS[idx]);
   haptic(mult>=50?'success':'light');
-  World.remove(world, ball);
-  balls = balls.filter(b=>b!==ball);
 }
 
 /* --- premium canvas rendering: metallic pegs, faceted gem ball, jeweled bonus target --- */
@@ -995,6 +1011,23 @@ function render(){
     ctx.fillStyle = fg;
     ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=1.4;
     ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  if(archParts.length){
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(W/2, H*0.27, W*0.28, Math.PI, Math.PI*2);
+    ctx.strokeStyle = '#f3c04a';
+    ctx.lineWidth = Math.max(4, W*0.035);
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(243,192,74,.75)';
+    ctx.shadowBlur = 9;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,248,224,.8)';
+    ctx.lineWidth = Math.max(1, W*0.012);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -1061,9 +1094,9 @@ $('#pinCanvas').addEventListener('pointerdown', (e)=>{
 async function attemptLaunch(x){
   if (state.ballsLeft <= 0){ toast('Шарики закончились — приходи завтра!', 'ic-gift'); return; }
   state.ballsLeft--;
-  await saveState();
   refreshTop();
   spawnBall(x);
+  void saveState();
 }
 
 /* ============================================================
@@ -1126,7 +1159,7 @@ $('#spinBtn').addEventListener('click', async ()=>{
   const spins = 5 + Math.random()*2;
   const finalRotation = spins*Math.PI*2 + (Math.PI*2 - targetSegCenter) - Math.PI/2;
   const start = performance.now();
-  const duration = 3600;
+  const duration = 2600;
   const startRot = wheelRotation % (Math.PI*2);
   function animate(t){
     const p = Math.min(1, (t-start)/duration);
@@ -1141,7 +1174,6 @@ $('#spinBtn').addEventListener('click', async ()=>{
 async function finishSpin(winIdx){
   const reward = WHEEL_SEGMENTS[winIdx];
   state.hearts += reward;
-  await saveState();
   refreshTop();
   haptic('success');
   $('#wheelOverlay').classList.remove('show');
@@ -1151,6 +1183,7 @@ async function finishSpin(winIdx){
   $('#rewardText').textContent = `Тебе выпало +${reward} сердечек С+М!`;
   $('#rewardOverlay').classList.add('show');
   confettiBurst();
+  void saveState();
 }
 $('#rewardCloseBtn').addEventListener('click', ()=> $('#rewardOverlay').classList.remove('show'));
 
