@@ -595,6 +595,8 @@ const Storage = {
 const DAILY_BALLS = 50;
 const STREAK_BONUS = [0, 10, 30, 50, 80, 120, 180]; // index = day-in-streak (1..7), cycles after
 const BONUS_HITS_NEEDED = 5;
+const GLOBAL_BALL_GRANT = 50;
+const GLOBAL_BALL_GRANT_ID = 'grant_2026_08_25_01';
 // bottom buckets left -> right, rarity increases with distance from center (Galton-board style)
 const BUCKETS = [50, 5, 1, 0.5, 1, 5, 50];
 const BUCKET_COLORS = ['#ff5b82','#f3a24a','#4fc3e8','#59d9a0','#4fc3e8','#f3a24a','#ff5b82'];
@@ -629,6 +631,13 @@ async function loadState(){
 }
 async function saveState(){
   await Storage.set(STORAGE_KEY, JSON.stringify(state));
+}
+
+async function applyGlobalBallGrant(){
+  if (state.globalBallGrantId === GLOBAL_BALL_GRANT_ID) return;
+  state.ballsLeft += GLOBAL_BALL_GRANT;
+  state.globalBallGrantId = GLOBAL_BALL_GRANT_ID;
+  await saveState();
 }
 
 function todayStr(){
@@ -1195,6 +1204,7 @@ $('#rewardCloseBtn').addEventListener('click', ()=> $('#rewardOverlay').classLis
 ============================================================ */
 (async function boot(){
   await loadState();
+  await applyGlobalBallGrant();
   refreshTop();
   await checkDailyBonus();
   refreshTop();
