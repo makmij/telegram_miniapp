@@ -862,10 +862,15 @@ function buildBoard(){
 
   walls.push(Bodies.rectangle(-10, H/2, 20, H*2, wallOpts));
   walls.push(Bodies.rectangle(W+10, H/2, 20, H*2, wallOpts));
-  walls.push(Bodies.rectangle(W/2, -10, W*2, 20, wallOpts));
 
-  launcherParts.push(Bodies.rectangle(W*0.965, H*0.16, W*0.025, H*0.25, {
+  launcherParts.push(Bodies.rectangle(W*0.86, H*0.56, W*0.025, H*0.78, {
     isStatic:true, restitution:0.35, friction:0.05, label:'launcher', render:{visible:false}
+  }));
+  launcherParts.push(Bodies.rectangle(W*0.965, H*0.56, W*0.025, H*0.78, {
+    isStatic:true, restitution:0.35, friction:0.05, label:'launcher', render:{visible:false}
+  }));
+  launcherParts.push(Bodies.rectangle(W*0.82, H*0.14, W*0.20, W*0.025, {
+    isStatic:true, restitution:0.35, friction:0.05, angle:-0.30, label:'launcher', render:{visible:false}
   }));
 
   archLayout = [
@@ -944,13 +949,12 @@ function pointSegmentDistance(px,py,x1,y1,x2,y2){
 }
 
 function spawnBall(x){
-  if (!Number.isFinite(x)) x = W*0.92;
-  x = Math.max(W*0.86, Math.min(W*0.93, x));
+  x = W*0.915;
   const r = Math.max(6, W*0.024);
-  const ball = Bodies.circle(x, H*0.10, r, {
+  const ball = Bodies.circle(x, H*0.86, r, {
     restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
   });
-  Body.setVelocity(ball, {x:-3.2, y:1.4});
+  Body.setVelocity(ball, {x:0, y:-11});
   World.add(world, ball);
   balls.push(ball);
   haptic('light');
@@ -1009,16 +1013,19 @@ function render(){
   ctx.clearRect(0,0,W,H);
 
   if(launcherParts.length){
-    const laneX = W*0.965, laneTop = H*0.035, laneBottom = H*0.29;
+    const laneTop = H*0.17, laneBottom = H*0.95;
     ctx.save();
     ctx.fillStyle = 'rgba(10,5,28,.55)';
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
     ctx.lineWidth = Math.max(2,W*0.009);
     ctx.beginPath();
-    ctx.moveTo(W*0.88,laneTop+10);
-    ctx.quadraticCurveTo(W*0.92,laneTop,W*0.965,laneTop);
-    ctx.lineTo(laneX,laneBottom);
-    ctx.lineTo(W*0.88,laneBottom);
+    ctx.moveTo(W*0.86,laneBottom);
+    ctx.lineTo(W*0.965,laneBottom);
+    ctx.lineTo(W*0.965,laneTop);
+    ctx.quadraticCurveTo(W*0.94,laneTop-H*0.03,W*0.88,laneTop-H*0.05);
+    ctx.lineTo(W*0.76,laneTop-H*0.02);
+    ctx.lineTo(W*0.82,laneTop+H*0.05);
+    ctx.lineTo(W*0.86,laneTop+H*0.04);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
