@@ -825,7 +825,7 @@ $('#streakBtn').addEventListener('click', ()=>{
 ============================================================ */
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 let engine, world, canvas, ctx, W, H;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], archParts = [], archLayout = [], launcherParts = [], launcherPath = [], launcherInnerPath = [];
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], archParts = [], archLayout = [], launcherParts = [], outerArchParts = [];
 let balls = [];
 
 function initPhysics(){
@@ -843,17 +843,9 @@ function initPhysics(){
 
   (function loop(){
     Engine.update(engine, 1000/60);
-    keepLauncherBallVertical();
     render();
     requestAnimationFrame(loop);
   })();
-}
-
-function keepLauncherBallVertical(){
-  balls.forEach(ball=>{
-    if(!ball._inLauncher || ball.position.y <= H*0.20) return;
-    Body.setVelocity(ball, {x:0, y:ball.velocity.y});
-  });
 }
 
 function resizeCanvas(){
@@ -865,38 +857,26 @@ function resizeCanvas(){
 }
 
 function buildBoard(){
-  pegs = []; bucketSensors = []; walls = []; archParts = []; archLayout = []; launcherParts = []; launcherPath = []; launcherInnerPath = [];
+  pegs = []; bucketSensors = []; walls = []; archParts = []; archLayout = []; launcherParts = []; outerArchParts = [];
   const wallOpts = { isStatic:true, restitution:0.35, friction:0.05, render:{visible:false} };
 
-  walls.push(Bodies.rectangle(-10, H/2, 20, H*2, wallOpts));
-  walls.push(Bodies.rectangle(W+10, H/2, 20, H*2, wallOpts));
+  const wallX = W*0.06, rightX = W*0.94;
+  const archRadius = (rightX-wallX)/2;
+  const archCenterX = (wallX+rightX)/2, archCenterY = H*0.30;
+  const archStart = Math.PI, archEnd = Math.PI*2;
+  const archPoints = [];
+  for(let i=0;i<=18;i++){
+    const angle = archStart + (archEnd-archStart)*i/18;
+    archPoints.push([archCenterX + Math.cos(angle)*archRadius, archCenterY + Math.sin(angle)*archRadius]);
+  }
+  outerArchParts = addPhysicalPolyline(archPoints, 'outer_arch', Math.max(7,W*0.025), 0.32);
+  walls.push(Bodies.rectangle(wallX, (archCenterY+H)/2, Math.max(7,W*0.025), H-archCenterY, wallOpts));
+  walls.push(Bodies.rectangle(rightX, (archCenterY+H)/2, Math.max(7,W*0.025), H-archCenterY, wallOpts));
 
-  launcherParts.push(Bodies.rectangle(W*0.84, H*0.56, W*0.02, H*0.78, {
-    isStatic:true, restitution:0.05, friction:0.02, label:'launcher', render:{visible:false}
+  const laneLeft = W*0.78, laneRight = W*0.94;
+  launcherParts.push(Bodies.rectangle(laneLeft, (archCenterY+H)/2, Math.max(7,W*0.02), H-archCenterY, {
+    isStatic:true, restitution:0.08, friction:0.02, label:'launcher', render:{visible:false}
   }));
-  launcherParts.push(Bodies.rectangle(W*0.98, H*0.56, W*0.02, H*0.78, {
-    isStatic:true, restitution:0.05, friction:0.02, label:'launcher', render:{visible:false}
-  }));
-  launcherPath = [
-    [W*0.98,H*0.17],[W*0.97,H*0.12],[W*0.94,H*0.08],
-    [W*0.90,H*0.055],[W*0.85,H*0.045],[W*0.80,H*0.055],[W*0.76,H*0.08]
-  ];
-  launcherInnerPath = [
-    [W*0.84,H*0.17],[W*0.83,H*0.13],[W*0.81,H*0.10],
-    [W*0.77,H*0.10],[W*0.72,H*0.13],[W*0.69,H*0.18],[W*0.68,H*0.24]
-  ];
-  for(let i=0;i<launcherPath.length-1;i++){
-    const [x1,y1] = launcherPath[i], [x2,y2] = launcherPath[i+1];
-    launcherParts.push(Bodies.rectangle((x1+x2)/2,(y1+y2)/2,Math.hypot(x2-x1,y2-y1),Math.max(6,W*0.02), {
-      isStatic:true, restitution:0.55, friction:0.02, angle:Math.atan2(y2-y1,x2-x1), label:'launcher', render:{visible:false}
-    }));
-  }
-  for(let i=0;i<launcherInnerPath.length-1;i++){
-    const [x1,y1] = launcherInnerPath[i], [x2,y2] = launcherInnerPath[i+1];
-    launcherParts.push(Bodies.rectangle((x1+x2)/2,(y1+y2)/2,Math.hypot(x2-x1,y2-y1),Math.max(6,W*0.02), {
-      isStatic:true, restitution:0.55, friction:0.02, angle:Math.atan2(y2-y1,x2-x1), label:'launcher', render:{visible:false}
-    }));
-  }
 
   archLayout = [
     {points:[[W*0.32,H*0.40],[W*0.35,H*0.37],[W*0.39,H*0.35],[W*0.44,H*0.34]]},
@@ -963,7 +943,16 @@ function buildBoard(){
   }
   walls.push(Bodies.rectangle(W/2, H+10, W*2, 20, {isStatic:true, render:{visible:false}}));
 
-  World.add(world, [...walls, ...pegs, ...archParts, ...launcherParts, bonusSensor, ...bucketSensors]);
+  World.add(world, [...walls, ...outerArchParts, ...pegs, ...archParts, ...launcherParts, bonusSensor, ...bucketSensors]);
+}
+
+function addPhysicalPolyline(points, label, thickness, restitution){
+  return points.slice(0,-1).map((point,i)=>{
+    const [x1,y1] = point, [x2,y2] = points[i+1];
+    return Bodies.rectangle((x1+x2)/2,(y1+y2)/2,Math.hypot(x2-x1,y2-y1),thickness, {
+      isStatic:true, restitution, friction:0.02, angle:Math.atan2(y2-y1,x2-x1), label, render:{visible:false}
+    });
+  });
 }
 
 function pointSegmentDistance(px,py,x1,y1,x2,y2){
@@ -974,13 +963,12 @@ function pointSegmentDistance(px,py,x1,y1,x2,y2){
 }
 
 function spawnBall(x){
-  x = W*0.91;
+  x = W*0.86;
   const r = Math.max(6, W*0.024);
   const ball = Bodies.circle(x, H*0.86, r, {
     restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
   });
-  ball._inLauncher = true;
-  Body.setVelocity(ball, {x:0, y:-32});
+  Body.setVelocity(ball, {x:0, y:-34});
   World.add(world, ball);
   balls.push(ball);
   haptic('light');
@@ -1038,20 +1026,37 @@ function render(){
   if(!ctx) return;
   ctx.clearRect(0,0,W,H);
 
+  if(outerArchParts.length){
+    const wallX = W*0.06, rightX = W*0.94;
+    const archRadius = (rightX-wallX)/2;
+    const archCenterX = (wallX+rightX)/2, archCenterY = H*0.30;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(archCenterX,archCenterY,archRadius,Math.PI,Math.PI*2);
+    ctx.strokeStyle = 'rgba(243,192,74,.9)';
+    ctx.lineWidth = Math.max(7,W*0.028);
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(243,192,74,.55)';
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,248,224,.8)';
+    ctx.lineWidth = Math.max(2,W*0.009);
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   if(launcherParts.length){
-    const laneTop = H*0.17, laneBottom = H*0.95;
+    const laneTop = H*0.30, laneBottom = H*0.95;
     ctx.save();
     ctx.fillStyle = 'rgba(10,5,28,.55)';
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
     ctx.lineWidth = Math.max(2,W*0.009);
     ctx.beginPath();
-    ctx.moveTo(W*0.84,laneBottom);
-    ctx.lineTo(W*0.98,laneBottom);
-    ctx.lineTo(W*0.98,laneTop);
-    ctx.lineTo(...launcherPath[0]);
-    for(let i=1;i<launcherPath.length;i++) ctx.lineTo(...launcherPath[i]);
-    for(let i=launcherInnerPath.length-1;i>=0;i--) ctx.lineTo(...launcherInnerPath[i]);
-    ctx.lineTo(W*0.84,laneBottom);
+    ctx.moveTo(W*0.78,laneBottom);
+    ctx.lineTo(W*0.94,laneBottom);
+    ctx.lineTo(W*0.94,laneTop);
+    ctx.lineTo(W*0.78,laneTop);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
