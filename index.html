@@ -865,18 +865,16 @@ function buildBoard(){
   walls.push(Bodies.rectangle(W/2, -10, W*2, 20, wallOpts));
 
   archLayout = [
-    {centerX:W*0.32, centerY:H*0.36, radius:W*0.095},
-    {centerX:W*0.50, centerY:H*0.36, radius:W*0.11},
-    {centerX:W*0.68, centerY:H*0.36, radius:W*0.095}
+    {points:[[W*0.24,H*0.43],[W*0.29,H*0.39],[W*0.35,H*0.35],[W*0.42,H*0.33]]},
+    {points:[[W*0.58,H*0.33],[W*0.65,H*0.35],[W*0.71,H*0.39],[W*0.76,H*0.43]]},
+    {points:[[W*0.27,H*0.53],[W*0.38,H*0.57],[W*0.50,H*0.59],[W*0.62,H*0.57],[W*0.73,H*0.53]]}
   ];
   archLayout.forEach(arch=>{
-    const segments = 7;
-    for(let i=0;i<segments;i++){
-      const angle = Math.PI + (Math.PI*i)/(segments-1);
-      const x = arch.centerX + Math.cos(angle)*arch.radius;
-      const y = arch.centerY + Math.sin(angle)*arch.radius;
-      const part = Bodies.rectangle(x, y, W*0.035, W*0.025, {
-        isStatic:true, restitution:0.62, friction:0.03, angle:angle + Math.PI/2,
+    for(let i=0;i<arch.points.length-1;i++){
+      const [x1,y1] = arch.points[i], [x2,y2] = arch.points[i+1];
+      const length = Math.hypot(x2-x1,y2-y1);
+      const part = Bodies.rectangle((x1+x2)/2, (y1+y2)/2, length, Math.max(7,W*0.025), {
+        isStatic:true, restitution:0.62, friction:0.03, angle:Math.atan2(y2-y1,x2-x1),
         label:'arch', render:{visible:false}
       });
       archParts.push(part);
@@ -1031,15 +1029,21 @@ function render(){
 
   if(archParts.length){
     ctx.save();
-    ctx.strokeStyle = '#f3c04a';
-    ctx.lineWidth = Math.max(3, W*0.022);
+    ctx.strokeStyle = '#d6d2d0';
+    ctx.lineWidth = Math.max(8, W*0.035);
     ctx.lineCap = 'round';
-    ctx.shadowColor = 'rgba(243,192,74,.75)';
-    ctx.shadowBlur = 9;
+    ctx.shadowColor = 'rgba(15,5,25,.85)';
+    ctx.shadowBlur = 5;
     archLayout.forEach(arch=>{
       ctx.beginPath();
-      ctx.arc(arch.centerX, arch.centerY, arch.radius, Math.PI, Math.PI*2);
+      ctx.moveTo(arch.points[0][0],arch.points[0][1]);
+      arch.points.slice(1).forEach(point=>ctx.lineTo(point[0],point[1]));
       ctx.stroke();
+      ctx.strokeStyle = '#f5f3f0';
+      ctx.lineWidth = Math.max(2, W*0.012);
+      ctx.stroke();
+      ctx.strokeStyle = '#d6d2d0';
+      ctx.lineWidth = Math.max(8, W*0.035);
     });
     ctx.shadowBlur = 0;
     ctx.restore();
