@@ -843,9 +843,17 @@ function initPhysics(){
 
   (function loop(){
     Engine.update(engine, 1000/60);
+    keepLauncherBallVertical();
     render();
     requestAnimationFrame(loop);
   })();
+}
+
+function keepLauncherBallVertical(){
+  balls.forEach(ball=>{
+    if(!ball._inLauncher || ball.position.y <= H*0.20) return;
+    Body.setVelocity(ball, {x:0, y:ball.velocity.y});
+  });
 }
 
 function resizeCanvas(){
@@ -863,18 +871,18 @@ function buildBoard(){
   walls.push(Bodies.rectangle(-10, H/2, 20, H*2, wallOpts));
   walls.push(Bodies.rectangle(W+10, H/2, 20, H*2, wallOpts));
 
-  launcherParts.push(Bodies.rectangle(W*0.86, H*0.56, W*0.025, H*0.78, {
-    isStatic:true, restitution:0.35, friction:0.05, label:'launcher', render:{visible:false}
+  launcherParts.push(Bodies.rectangle(W*0.84, H*0.56, W*0.02, H*0.78, {
+    isStatic:true, restitution:0.05, friction:0.02, label:'launcher', render:{visible:false}
   }));
-  launcherParts.push(Bodies.rectangle(W*0.965, H*0.56, W*0.025, H*0.78, {
-    isStatic:true, restitution:0.35, friction:0.05, label:'launcher', render:{visible:false}
+  launcherParts.push(Bodies.rectangle(W*0.98, H*0.56, W*0.02, H*0.78, {
+    isStatic:true, restitution:0.05, friction:0.02, label:'launcher', render:{visible:false}
   }));
   launcherPath = [
-    [W*0.965,H*0.17],[W*0.96,H*0.12],[W*0.94,H*0.08],
+    [W*0.98,H*0.17],[W*0.97,H*0.12],[W*0.94,H*0.08],
     [W*0.90,H*0.055],[W*0.85,H*0.045],[W*0.80,H*0.055],[W*0.76,H*0.08]
   ];
   launcherInnerPath = [
-    [W*0.86,H*0.17],[W*0.84,H*0.13],[W*0.81,H*0.10],
+    [W*0.84,H*0.17],[W*0.83,H*0.13],[W*0.81,H*0.10],
     [W*0.77,H*0.10],[W*0.72,H*0.13],[W*0.69,H*0.18],[W*0.68,H*0.24]
   ];
   for(let i=0;i<launcherPath.length-1;i++){
@@ -966,11 +974,12 @@ function pointSegmentDistance(px,py,x1,y1,x2,y2){
 }
 
 function spawnBall(x){
-  x = W*0.915;
+  x = W*0.91;
   const r = Math.max(6, W*0.024);
   const ball = Bodies.circle(x, H*0.86, r, {
     restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
   });
+  ball._inLauncher = true;
   Body.setVelocity(ball, {x:0, y:-32});
   World.add(world, ball);
   balls.push(ball);
@@ -1036,14 +1045,13 @@ function render(){
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
     ctx.lineWidth = Math.max(2,W*0.009);
     ctx.beginPath();
-    ctx.moveTo(W*0.86,laneBottom);
-    ctx.lineTo(W*0.965,laneBottom);
-    ctx.lineTo(W*0.965,laneTop);
+    ctx.moveTo(W*0.84,laneBottom);
+    ctx.lineTo(W*0.98,laneBottom);
+    ctx.lineTo(W*0.98,laneTop);
     ctx.lineTo(...launcherPath[0]);
     for(let i=1;i<launcherPath.length;i++) ctx.lineTo(...launcherPath[i]);
     for(let i=launcherInnerPath.length-1;i>=0;i--) ctx.lineTo(...launcherInnerPath[i]);
-    ctx.lineTo(W*0.86,laneBottom);
-    ctx.lineTo(W*0.86,laneBottom);
+    ctx.lineTo(W*0.84,laneBottom);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
