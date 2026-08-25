@@ -592,6 +592,8 @@ const BUCKET_COLORS = ['#ff5b82','#f3a24a','#4fc3e8','#59d9a0','#4fc3e8','#f3a24
 const WHEEL_SEGMENTS = [10, 20, 15, 50, 25, 100, 30, 15]; // balls
 
 const SHOP_ITEMS = [
+  {id:'balls10',  type:'balls', amount:10, icon:'ic-orb', title:'10 шариков',   desc:'Дополнительные попытки для пинбола', price:50},
+  {id:'balls50',  type:'balls', amount:50, icon:'ic-orb', title:'50 шариков',   desc:'Большая пачка дополнительных шариков', price:200},
   {id:'kiss1',   icon:'ic-kiss',  title:'1 поцелуй',        desc:'Один нежный поцелуй по требованию', price:60},
   {id:'kiss10',  icon:'ic-kiss',  title:'10 поцелуев',      desc:'Целая обойма поцелуев в течение дня', price:450},
   {id:'kiss50',  icon:'ic-kiss',  title:'50 поцелуев',      desc:'Море нежности — используй как хочешь', price:1800},
@@ -706,7 +708,8 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
 function renderShop(){
   const list = $('#shopList'); list.innerHTML='';
   SHOP_ITEMS.forEach((item, idx)=>{
-    const unlocked = idx===0 || (state.purchased[SHOP_ITEMS[idx-1].id] > 0);
+    const previousGift = SHOP_ITEMS.slice(0,idx).reverse().find(shopItem=>shopItem.type!=='balls');
+    const unlocked = item.type==='balls' || !previousGift || (state.purchased[previousGift.id] > 0);
     const card = document.createElement('div');
     card.className = 'item-card' + (unlocked ? '' : ' locked');
     card.innerHTML = `
@@ -737,7 +740,8 @@ function openConfirm(id){
   pendingItemId = id;
   $('#confirmIcon').innerHTML = `<use href="#${item.icon}"/>`;
   $('#confirmTitle').textContent = 'Подтверди подарок';
-  $('#confirmText').textContent = `Потратить ${fmt(item.price)} сердечек С+М на «${item.title}»?`;
+  const rewardText = item.type==='balls' ? `получить ${item.amount} шариков` : `получить «${item.title}»`;
+  $('#confirmText').textContent = `Потратить ${fmt(item.price)} сердечек С+М и ${rewardText}?`;
   $('#confirmOverlay').classList.add('show');
 }
 $('#confirmNoBtn').addEventListener('click', ()=> $('#confirmOverlay').classList.remove('show'));
@@ -745,6 +749,7 @@ $('#confirmYesBtn').addEventListener('click', async ()=>{
   const item = SHOP_ITEMS.find(i=>i.id===pendingItemId);
   if(!item || state.hearts < item.price) { $('#confirmOverlay').classList.remove('show'); return; }
   state.hearts -= item.price;
+  if(item.type==='balls') state.ballsLeft += item.amount;
   state.purchased[item.id] = (state.purchased[item.id]||0) + 1;
   state.history.unshift({id:item.id, title:item.title, icon:item.icon, price:item.price, date:new Date().toISOString()});
   await saveState();
