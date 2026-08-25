@@ -833,7 +833,7 @@ function initPhysics(){
   if(window.ResizeObserver) new ResizeObserver(resizeCanvas).observe($('.board-wrap'));
 
   engine = Engine.create();
-  engine.gravity.y = 1.05;
+  engine.gravity.y = 0.72;
   world = engine.world;
 
   buildBoard();
@@ -904,6 +904,7 @@ function buildBoard(){
   }
   pegs.push(Bodies.circle(270, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
   pegs.push(Bodies.circle(330, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
+  pegs.push(Bodies.circle(520, 112, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
 
   bonusSensor = Bodies.circle(W/2, 360, 24, { isStatic:true, isSensor:true, label:'bonus' });
 
@@ -972,7 +973,7 @@ function spawnBall(x){
     restitution:0.62, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball',
     collisionFilter:{group:LAUNCHER_GHOST_GROUP, category:0x0001, mask:0xFFFFFFFF}
   });
-  const baseLaunchSpeed = 34;
+  const baseLaunchSpeed = 27;
   const launchSpeed = baseLaunchSpeed;
   const launchSideJitter = (Math.random()-0.5)*1;
   Body.setVelocity(ball, {x:launchSideJitter, y:-launchSpeed});
