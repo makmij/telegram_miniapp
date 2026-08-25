@@ -972,7 +972,7 @@ function spawnBall(x){
     restitution:0.62, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball',
     collisionFilter:{group:LAUNCHER_GHOST_GROUP, category:0x0001, mask:0xFFFFFFFF}
   });
-  const baseLaunchSpeed = 27;
+  const baseLaunchSpeed = 20;
   const launchSpeed = baseLaunchSpeed;
   const launchSideJitter = (Math.random()-0.5)*1;
   Body.setVelocity(ball, {x:launchSideJitter, y:-launchSpeed});
