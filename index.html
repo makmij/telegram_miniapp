@@ -813,7 +813,7 @@ $('#streakBtn').addEventListener('click', ()=>{
    PINBALL PHYSICS (matter.js)
 ============================================================ */
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
-let engine, world, canvas, ctx, W, H;
+let engine, world, canvas, ctx, W, H, SCALE = 1;
 let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [];
 let balls = [];
 
@@ -822,6 +822,7 @@ function initPhysics(){
   ctx = canvas.getContext('2d');
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
+  if(window.ResizeObserver) new ResizeObserver(resizeCanvas).observe($('.board-wrap'));
 
   engine = Engine.create();
   engine.gravity.y = 1.05;
@@ -840,9 +841,12 @@ function initPhysics(){
 function resizeCanvas(){
   const wrap = $('.board-wrap');
   const rect = wrap.getBoundingClientRect();
-  W = canvas.width = Math.round(rect.width);
-  H = canvas.height = Math.round(rect.height);
-  if (world) { Composite.clear(world, false); buildBoard(); }
+  W = Math.max(1, Math.round(rect.width));
+  H = Math.max(1, Math.round(rect.height));
+  SCALE = W / 360;
+  canvas.width = W;
+  canvas.height = H;
+  if (world) { Composite.clear(world, false); balls = []; buildBoard(); }
 }
 
 function buildBoard(){
@@ -854,19 +858,21 @@ function buildBoard(){
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
 
-  const topMargin = H*0.14, bottomMargin = H*0.62;
+  const topMargin = Math.max(H*0.14, H*0.34 - W*0.5 + 34*SCALE);
+  const bottomMargin = H*0.62;
   const rows = 9;
   const rowGap = (bottomMargin-topMargin)/rows;
   const pegR = Math.max(3, W*0.014);
   for(let r=0;r<rows;r++){
     const y = topMargin + r*rowGap;
     const cols = 5 + (r%2===0 ? 0 : 1);
-    const usableW = W*0.78;
+    const usableW = Math.min(W*0.74, W*0.78);
     const startX = (W-usableW)/2 + (r%2===0 ? usableW/(cols)/2 : 0);
     const gapX = usableW/cols;
     for(let c=0;c<cols;c++){
       const x = startX + c*gapX;
-      if (x < W*0.08 || x > W*0.92) continue;
+      const plungerWallX = W*0.80;
+      if (x < W*0.08 || x > plungerWallX - pegR - 10*SCALE) continue;
       const nearBonus = Math.hypot(x-W/2, y-H*0.40) < W*0.04 + pegR + 8;
       if (nearBonus) continue;
       const peg = Bodies.circle(x, y, pegR, { isStatic:true, restitution:0.65, friction:0.02, label:'peg' });
@@ -930,7 +936,7 @@ function addPhysicalPolyline(points, label, thickness, restitution){
 
 function spawnBall(x){
   x = W*0.86;
-  const r = Math.max(6, W*0.024);
+  const r = Math.max(6, 8*SCALE);
   const ball = Bodies.circle(x, H*0.86, r, {
     restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
   });
