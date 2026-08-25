@@ -878,7 +878,6 @@ function buildBoard(){
   outerArchParts = border.outer;
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
-  launcherParts.push(border.exitGate);
   domeDeflector = Bodies.polygon(W/2, 70, 3, 22, {
     isStatic:true, restitution:0.68, friction:0.02, label:'dome_deflector', render:{visible:false}
   });
@@ -941,19 +940,17 @@ function buildPlayfieldBorders(wallOpts){
   }
   playfieldPath = [[wallX,H], [wallX,archCenterY], ...archPoints.slice(1,-1), [rightX,archCenterY], [rightX,H]];
   const thickness = 15;
-  const tunnelWallOpts = {...wallOpts, friction:0, frictionAir:0, frictionStatic:0};
+  const tunnelWallOpts = {...wallOpts, restitution:0, friction:0, frictionAir:0, frictionStatic:0};
   const verticalWalls = [
     Bodies.rectangle(wallX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts),
     Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,tunnelWallOpts)
   ];
   const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.62);
-  const plungerWall = Bodies.rectangle(plungerWallX,(archCenterY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-archCenterY, {
-    isStatic:true, restitution:0.08, friction:0, frictionAir:0, frictionStatic:0, label:'plunger_wall', render:{visible:false}
+  const plungerEndY = archCenterY - 8;
+  const plungerWall = Bodies.rectangle(plungerWallX,(plungerEndY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-plungerEndY, {
+    isStatic:true, restitution:0, friction:0, frictionAir:0, frictionStatic:0, label:'plunger_wall', render:{visible:false}
   });
-  const exitGate = Bodies.rectangle(plungerWallX-18, archCenterY+26, 52, 10, {
-    isStatic:true, restitution:0.78, friction:0, frictionAir:0, frictionStatic:0, angle:0.55, label:'plunger_gate', render:{visible:false}
-  });
-  return {outer, verticalWalls, plungerWall, exitGate};
+  return {outer, verticalWalls, plungerWall};
 }
 
 function addPhysicalPolyline(points, label, thickness, restitution){
