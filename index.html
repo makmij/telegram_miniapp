@@ -878,7 +878,7 @@ function buildBoard(){
   outerArchParts = border.outer;
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
-  domeDeflector = Bodies.polygon(W/2, 90, 3, 16, {
+  domeDeflector = Bodies.polygon(W / 2, 90, 3, 16, {
     isStatic:true, restitution:0.8, friction:0.02, label:'dome_deflector', render:{visible:false}
   });
 
@@ -932,10 +932,10 @@ function buildBoard(){
 function buildPlayfieldBorders(wallOpts){
   const wallX = 0, rightX = VIRTUAL_WIDTH;
   const archRadius = (rightX-wallX)/2;
-  const archCenterX = (wallX+rightX)/2, archCenterY = 280;
+  const archCenterX = (wallX+rightX)/2, archCenterY = 270;
   const archPoints = [];
-  for(let i=0;i<=24;i++){
-    const angle = Math.PI + Math.PI*i/24;
+  for(let i=0;i<=32;i++){
+    const angle = Math.PI + Math.PI*i/32;
     archPoints.push([archCenterX + Math.cos(angle)*archRadius, archCenterY + Math.sin(angle)*archRadius]);
   }
   playfieldPath = [[wallX,H], [wallX,archCenterY], ...archPoints.slice(1,-1), [rightX,archCenterY], [rightX,H]];
@@ -966,18 +966,15 @@ function addPhysicalPolyline(points, label, thickness, restitution){
 }
 
 function spawnBall(x){
-  const tunnelMinX = plungerWallX + 14 + 2;
-  const tunnelMaxX = VIRTUAL_WIDTH - 14 - 2;
-  x = tunnelMinX + Math.random()*(tunnelMaxX-tunnelMinX);
-  const r = 14;
-  const ball = Bodies.circle(x, 774, r, {
-    restitution:0.62, friction:0, frictionAir:0, frictionStatic:0, density:0.0016, label:'ball',
-    collisionFilter:{group:LAUNCHER_GHOST_GROUP, category:0x0001, mask:0xFFFFFFFF}
+  const tunnelWidth = VIRTUAL_WIDTH - plungerWallX;
+  const safeSpawnX = plungerWallX + (tunnelWidth / 2);
+  const safeSpawnY = VIRTUAL_HEIGHT - 40;
+  const ball = Bodies.circle(safeSpawnX, safeSpawnY, 11, {
+    restitution:0.6, friction:0, frictionAir:0.002, frictionStatic:0, density:0.0016, label:'ball',
+    collisionFilter:{group:-1, category:0x0001, mask:0xFFFFFFFF}
   });
-  const baseLaunchSpeed = 26;
-  const launchSpeed = baseLaunchSpeed;
   ball._inLauncher = true;
-  Body.setVelocity(ball, {x:0, y:-launchSpeed});
+  Body.setVelocity(ball, {x:0, y:-26});
   World.add(world, ball);
   balls.push(ball);
   haptic('light');
