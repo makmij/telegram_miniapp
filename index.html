@@ -813,7 +813,9 @@ $('#streakBtn').addEventListener('click', ()=>{
    PINBALL PHYSICS (matter.js)
 ============================================================ */
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
-let engine, world, canvas, ctx, W, H, SCALE = 1;
+const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
+let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
+let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
 let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [];
 let balls = [];
 
@@ -841,12 +843,13 @@ function initPhysics(){
 function resizeCanvas(){
   const wrap = $('.board-wrap');
   const rect = wrap.getBoundingClientRect();
-  W = Math.max(1, Math.round(rect.width));
-  H = Math.max(1, Math.round(rect.height));
-  SCALE = W / 360;
-  canvas.width = W;
-  canvas.height = H;
-  if (world) { Composite.clear(world, false); balls = []; buildBoard(); }
+  const dpr = window.devicePixelRatio || 1;
+  renderDpr = dpr;
+  renderScale = Math.min(rect.width/VIRTUAL_WIDTH, rect.height/VIRTUAL_HEIGHT);
+  renderOffsetX = (rect.width - VIRTUAL_WIDTH*renderScale)/2;
+  renderOffsetY = (rect.height - VIRTUAL_HEIGHT*renderScale)/2;
+  canvas.width = Math.max(1, Math.round(rect.width*dpr));
+  canvas.height = Math.max(1, Math.round(rect.height*dpr));
 }
 
 function buildBoard(){
@@ -858,68 +861,68 @@ function buildBoard(){
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
 
-  const topMargin = Math.max(H*0.14, H*0.34 - W*0.5 + 34*SCALE);
-  const bottomMargin = H*0.62;
+  const topMargin = 126;
+  const bottomMargin = 558;
   const rows = 9;
   const rowGap = (bottomMargin-topMargin)/rows;
-  const pegR = Math.max(3, W*0.014);
+  const pegR = 8;
   for(let r=0;r<rows;r++){
     const y = topMargin + r*rowGap;
     const cols = 5 + (r%2===0 ? 0 : 1);
-    const usableW = Math.min(W*0.74, W*0.78);
+    const usableW = 444;
     const startX = (W-usableW)/2 + (r%2===0 ? usableW/(cols)/2 : 0);
     const gapX = usableW/cols;
     for(let c=0;c<cols;c++){
       const x = startX + c*gapX;
-      const plungerWallX = W*0.80;
-      if (x < W*0.08 || x > plungerWallX - pegR - 10*SCALE) continue;
-      const nearBonus = Math.hypot(x-W/2, y-H*0.40) < W*0.04 + pegR + 8;
+      const plungerWallX = 480;
+      if (x < 48 || x > plungerWallX - pegR - 10) continue;
+      const nearBonus = Math.hypot(x-W/2, y-360) < 24 + pegR + 8;
       if (nearBonus) continue;
       const peg = Bodies.circle(x, y, pegR, { isStatic:true, restitution:0.65, friction:0.02, label:'peg' });
       pegs.push(peg);
     }
   }
 
-  bonusSensor = Bodies.circle(W/2, H*0.40, Math.max(10,W*0.04), { isStatic:true, isSensor:true, label:'bonus' });
+  bonusSensor = Bodies.circle(W/2, 360, 24, { isStatic:true, isSensor:true, label:'bonus' });
 
   const guideOpts = { isStatic:true, restitution:0.3, render:{visible:false} };
-  const guideY = bottomMargin + H*0.02;
-  walls.push(Bodies.rectangle(W*0.12, guideY, W*0.02, H*0.22, {...guideOpts, angle: 0.35}));
-  walls.push(Bodies.rectangle(W*0.88, guideY, W*0.02, H*0.22, {...guideOpts, angle: -0.35}));
+  const guideY = bottomMargin + 18;
+  walls.push(Bodies.rectangle(72, guideY, 12, 198, {...guideOpts, angle: 0.35}));
+  walls.push(Bodies.rectangle(528, guideY, 12, 198, {...guideOpts, angle: -0.35}));
 
-  const bucketTop = H*0.86;
+  const bucketTop = 774;
   const n = BUCKETS.length;
   const bw = W/n;
   bucketSensors = [];
   for(let i=0;i<=n;i++){
-    walls.push(Bodies.rectangle(i*bw, bucketTop + H*0.07, 4, H*0.16, {isStatic:true, friction:0.05, render:{visible:false}}));
+    walls.push(Bodies.rectangle(i*bw, bucketTop + 63, 4, 144, {isStatic:true, friction:0.05, render:{visible:false}}));
   }
   for(let i=0;i<n;i++){
-    const sensor = Bodies.rectangle(i*bw + bw/2, bucketTop + H*0.11, bw-6, 10, { isStatic:true, isSensor:true, label:'bucket_'+i });
+    const sensor = Bodies.rectangle(i*bw + bw/2, bucketTop + 99, bw-6, 10, { isStatic:true, isSensor:true, label:'bucket_'+i });
     bucketSensors.push(sensor);
   }
-  walls.push(Bodies.rectangle(W/2, H+10, W*2, 20, {isStatic:true, render:{visible:false}}));
+  walls.push(Bodies.rectangle(W/2, VIRTUAL_HEIGHT+10, VIRTUAL_WIDTH*2, 20, {isStatic:true, render:{visible:false}}));
 
   World.add(world, [...walls, ...outerArchParts, ...pegs, ...launcherParts, bonusSensor, ...bucketSensors]);
 }
 
 function buildPlayfieldBorders(wallOpts){
-  const wallX = 0, rightX = W;
+  const wallX = 0, rightX = VIRTUAL_WIDTH;
   const archRadius = (rightX-wallX)/2;
-  const archCenterX = (wallX+rightX)/2, archCenterY = H*0.34;
+  const archCenterX = (wallX+rightX)/2, archCenterY = 204;
   const archPoints = [];
   for(let i=0;i<=24;i++){
     const angle = Math.PI + Math.PI*i/24;
     archPoints.push([archCenterX + Math.cos(angle)*archRadius, archCenterY + Math.sin(angle)*archRadius]);
   }
   playfieldPath = [[wallX,H], [wallX,archCenterY], ...archPoints.slice(1,-1), [rightX,archCenterY], [rightX,H]];
-  const thickness = Math.max(7,W*0.025);
+  const thickness = 15;
   const verticalWalls = [
     Bodies.rectangle(wallX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts),
     Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts)
   ];
   const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.32);
-  const plungerWall = Bodies.rectangle(W*0.80,(archCenterY+H)/2,Math.max(7,W*0.018),H-archCenterY, {
+  const plungerWall = Bodies.rectangle(480,(archCenterY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-archCenterY, {
     isStatic:true, restitution:0.08, friction:0.02, label:'plunger_wall', render:{visible:false}
   });
   return {outer, verticalWalls, plungerWall};
@@ -935,9 +938,9 @@ function addPhysicalPolyline(points, label, thickness, restitution){
 }
 
 function spawnBall(x){
-  x = W*0.86;
-  const r = Math.max(6, 8*SCALE);
-  const ball = Bodies.circle(x, H*0.86, r, {
+  x = 516;
+  const r = 14;
+  const ball = Bodies.circle(x, 774, r, {
     restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
   });
   Body.setVelocity(ball, {x:0, y:-34});
@@ -996,14 +999,15 @@ async function handleBucketLand(ball, idx){
 /* --- premium canvas rendering: metallic pegs, faceted gem ball, jeweled bonus target --- */
 function render(){
   if(!ctx) return;
-  ctx.clearRect(0,0,W,H);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.setTransform(renderScale*renderDpr,0,0,renderScale*renderDpr,renderOffsetX*renderDpr,renderOffsetY*renderDpr);
 
   if(outerArchParts.length){
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(playfieldPath[0][0],playfieldPath[0][1]);
     playfieldPath.slice(1).forEach(point=>ctx.lineTo(point[0],point[1]));
-    ctx.closePath();
     ctx.closePath();
     const fieldFill = ctx.createLinearGradient(0,0,0,H);
     fieldFill.addColorStop(0,'rgba(74,37,144,.82)');
@@ -1027,14 +1031,14 @@ function render(){
   }
 
   if(launcherParts.length){
-    const laneTop = H*0.34, laneBottom = H*0.95;
+    const laneTop = 204, laneBottom = VIRTUAL_HEIGHT-30;
     ctx.save();
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
     ctx.lineWidth = Math.max(4,W*0.02);
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(W*0.80,laneBottom);
-    ctx.lineTo(W*0.80,laneTop);
+    ctx.moveTo(480,laneBottom);
+    ctx.lineTo(480,laneTop);
     ctx.stroke();
     ctx.restore();
   }
