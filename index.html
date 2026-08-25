@@ -1177,10 +1177,13 @@ function shadeColor(hex, pct){
 }
 
 let launchHoldTimer = null, launchInterval = null;
+let launchHoldActive = false;
 const launchButton = $('#launchBtn');
 function startAutoLaunch(event){
   event.preventDefault();
-  if(launchButton.disabled) return;
+  if(launchHoldActive || launchButton.disabled) return;
+  launchHoldActive = true;
+  if(event.pointerId !== undefined && launchButton.setPointerCapture) launchButton.setPointerCapture(event.pointerId);
   attemptLaunch();
   clearTimeout(launchHoldTimer);
   clearInterval(launchInterval);
@@ -1189,6 +1192,7 @@ function startAutoLaunch(event){
   }, 1000);
 }
 function stopAutoLaunch(){
+  launchHoldActive = false;
   clearTimeout(launchHoldTimer);
   clearInterval(launchInterval);
   launchHoldTimer = null;
@@ -1198,6 +1202,8 @@ launchButton.addEventListener('pointerdown', startAutoLaunch);
 launchButton.addEventListener('pointerup', stopAutoLaunch);
 launchButton.addEventListener('pointerleave', stopAutoLaunch);
 launchButton.addEventListener('pointercancel', stopAutoLaunch);
+window.addEventListener('pointerup', stopAutoLaunch);
+window.addEventListener('pointercancel', stopAutoLaunch);
 $('#pinCanvas').addEventListener('pointerdown', (e)=>{
   const rect = canvas.getBoundingClientRect();
   attemptLaunch(e.clientX - rect.left);
