@@ -904,6 +904,9 @@ function buildBoard(){
   }
   pegs.push(Bodies.circle(270, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
   pegs.push(Bodies.circle(330, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
+  pegs.push(Bodies.circle(plungerWallX-15, 220, 8, {
+    isStatic:true, restitution:0.8, friction:0.02, label:'launcher_deflector'
+  }));
 
   bonusSensor = Bodies.circle(W/2, 360, 24, { isStatic:true, isSensor:true, label:'bonus' });
 
@@ -938,6 +941,8 @@ function buildPlayfieldBorders(wallOpts){
     const angle = Math.PI + Math.PI*i/32;
     archPoints.push([archCenterX + Math.cos(angle)*archRadius, archCenterY + Math.sin(angle)*archRadius]);
   }
+  archPoints[31] = [VIRTUAL_WIDTH-22, 235];
+  archPoints[30] = [VIRTUAL_WIDTH-46, 182];
   playfieldPath = [[wallX,H], [wallX,archCenterY], ...archPoints.slice(1,-1), [rightX,archCenterY], [rightX,H]];
   const thickness = 15;
   const tunnelWallOpts = {
