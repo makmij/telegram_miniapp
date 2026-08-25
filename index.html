@@ -816,7 +816,7 @@ const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [];
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 560;
 let balls = [];
 
 function initPhysics(){
@@ -860,6 +860,7 @@ function buildBoard(){
   outerArchParts = border.outer;
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
+  launcherParts.push(border.exitGate);
 
   const topMargin = 126;
   const bottomMargin = 558;
@@ -874,7 +875,6 @@ function buildBoard(){
     const gapX = usableW/cols;
     for(let c=0;c<cols;c++){
       const x = startX + c*gapX;
-      const plungerWallX = 480;
       if (x < 48 || x > plungerWallX - pegR - 10) continue;
       const nearBonus = Math.hypot(x-W/2, y-360) < 24 + pegR + 8;
       if (nearBonus) continue;
@@ -892,7 +892,8 @@ function buildBoard(){
 
   const bucketTop = 774;
   const n = BUCKETS.length;
-  const bw = W/n;
+  const mainWidth = plungerWallX - 8;
+  const bw = mainWidth/n;
   bucketSensors = [];
   for(let i=0;i<=n;i++){
     walls.push(Bodies.rectangle(i*bw, bucketTop + 63, 4, 144, {isStatic:true, friction:0.05, render:{visible:false}}));
@@ -922,10 +923,13 @@ function buildPlayfieldBorders(wallOpts){
     Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts)
   ];
   const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.32);
-  const plungerWall = Bodies.rectangle(480,(archCenterY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-archCenterY, {
+  const plungerWall = Bodies.rectangle(plungerWallX,(archCenterY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-archCenterY, {
     isStatic:true, restitution:0.08, friction:0.02, label:'plunger_wall', render:{visible:false}
   });
-  return {outer, verticalWalls, plungerWall};
+  const exitGate = Bodies.rectangle(plungerWallX-18, archCenterY+26, 52, 10, {
+    isStatic:true, restitution:0.75, friction:0.02, angle:-0.55, label:'plunger_gate', render:{visible:false}
+  });
+  return {outer, verticalWalls, plungerWall, exitGate};
 }
 
 function addPhysicalPolyline(points, label, thickness, restitution){
@@ -938,7 +942,7 @@ function addPhysicalPolyline(points, label, thickness, restitution){
 }
 
 function spawnBall(x){
-  x = 516;
+  x = 580;
   const r = 14;
   const ball = Bodies.circle(x, 774, r, {
     restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
@@ -1037,8 +1041,8 @@ function render(){
     ctx.lineWidth = Math.max(4,W*0.02);
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(480,laneBottom);
-    ctx.lineTo(480,laneTop);
+    ctx.moveTo(plungerWallX,laneBottom);
+    ctx.lineTo(plungerWallX,laneTop);
     ctx.stroke();
     ctx.restore();
   }
@@ -1086,7 +1090,7 @@ function render(){
   }
 
   // bucket zones with jeweled label chip
-  const n = BUCKETS.length, bw = W/n;
+  const n = BUCKETS.length, bw = (plungerWallX-8)/n;
   bucketSensors.forEach((s,i)=>{
     ctx.save();
     ctx.globalAlpha = 0.16;
