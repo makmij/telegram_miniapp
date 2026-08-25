@@ -878,8 +878,8 @@ function buildBoard(){
   outerArchParts = border.outer;
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
-  domeDeflector = Bodies.polygon(W/2, 70, 3, 22, {
-    isStatic:true, restitution:0.68, friction:0.02, label:'dome_deflector', render:{visible:false}
+  domeDeflector = Bodies.polygon(W/2, 90, 3, 16, {
+    isStatic:true, restitution:0.8, friction:0.02, label:'dome_deflector', render:{visible:false}
   });
 
   const topMargin = 126;
@@ -932,7 +932,7 @@ function buildBoard(){
 function buildPlayfieldBorders(wallOpts){
   const wallX = 0, rightX = VIRTUAL_WIDTH;
   const archRadius = (rightX-wallX)/2;
-  const archCenterX = (wallX+rightX)/2, archCenterY = 300;
+  const archCenterX = (wallX+rightX)/2, archCenterY = 280;
   const archPoints = [];
   for(let i=0;i<=24;i++){
     const angle = Math.PI + Math.PI*i/24;
@@ -940,13 +940,16 @@ function buildPlayfieldBorders(wallOpts){
   }
   playfieldPath = [[wallX,H], [wallX,archCenterY], ...archPoints.slice(1,-1), [rightX,archCenterY], [rightX,H]];
   const thickness = 15;
-  const tunnelWallOpts = {...wallOpts, restitution:0, friction:0, frictionAir:0, frictionStatic:0};
+  const tunnelWallOpts = {
+    isStatic:true, restitution:0, friction:0, frictionAir:0, frictionStatic:0,
+    label:'tunnel_wall', render:{visible:false}
+  };
   const verticalWalls = [
     Bodies.rectangle(wallX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts),
     Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,tunnelWallOpts)
   ];
-  const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.62);
-  const plungerEndY = archCenterY - 8;
+  const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.65);
+  const plungerEndY = 310;
   const plungerWall = Bodies.rectangle(plungerWallX,(plungerEndY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-plungerEndY, {
     isStatic:true, restitution:0, friction:0, frictionAir:0, frictionStatic:0, label:'plunger_wall', render:{visible:false}
   });
@@ -1062,7 +1065,7 @@ function render(){
   }
 
   if(launcherParts.length){
-    const laneTop = 300, laneBottom = VIRTUAL_HEIGHT-30;
+    const laneTop = 310, laneBottom = VIRTUAL_HEIGHT-30;
     ctx.save();
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
     ctx.lineWidth = Math.max(4,W*0.02);
