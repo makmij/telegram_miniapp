@@ -944,7 +944,7 @@ function buildPlayfieldBorders(wallOpts){
     isStatic:true, restitution:0.08, friction:0.02, label:'plunger_wall', render:{visible:false}
   });
   const exitGate = Bodies.rectangle(plungerWallX-18, archCenterY+26, 52, 10, {
-    isStatic:true, restitution:0.75, friction:0.02, angle:-0.55, label:'plunger_gate', render:{visible:false}
+    isStatic:true, restitution:0.78, friction:0.02, angle:0.55, label:'plunger_gate', render:{visible:false}
   });
   return {outer, verticalWalls, plungerWall, exitGate};
 }
@@ -1167,7 +1167,28 @@ function shadeColor(hex, pct){
   return `rgb(${r},${g},${b})`;
 }
 
-$('#launchBtn').addEventListener('click', ()=> attemptLaunch());
+let launchHoldTimer = null, launchInterval = null;
+const launchButton = $('#launchBtn');
+function startAutoLaunch(event){
+  event.preventDefault();
+  if(launchButton.disabled) return;
+  attemptLaunch();
+  clearTimeout(launchHoldTimer);
+  clearInterval(launchInterval);
+  launchHoldTimer = setTimeout(()=>{
+    launchInterval = setInterval(()=>attemptLaunch(), 180);
+  }, 1000);
+}
+function stopAutoLaunch(){
+  clearTimeout(launchHoldTimer);
+  clearInterval(launchInterval);
+  launchHoldTimer = null;
+  launchInterval = null;
+}
+launchButton.addEventListener('pointerdown', startAutoLaunch);
+launchButton.addEventListener('pointerup', stopAutoLaunch);
+launchButton.addEventListener('pointerleave', stopAutoLaunch);
+launchButton.addEventListener('pointercancel', stopAutoLaunch);
 $('#pinCanvas').addEventListener('pointerdown', (e)=>{
   const rect = canvas.getBoundingClientRect();
   attemptLaunch(e.clientX - rect.left);
