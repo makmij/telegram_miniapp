@@ -645,7 +645,7 @@ function refreshTop(){
   $('#heartsBalance').textContent = fmt(state.hearts);
   $('#ballsBalance').textContent = state.ballsLeft;
   $('#ballsBarFill').style.width = Math.max(0, Math.min(100, (state.ballsLeft/DAILY_BALLS)*100)) + '%';
-  $('#launchBtn').disabled = state.ballsLeft <= 0;
+  $('#launchBtn').disabled = state.ballsLeft <= 0 || launchLocked;
   renderBonusDots();
 }
 function renderBonusDots(){
@@ -816,8 +816,8 @@ const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 560;
-let balls = [];
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 560, domeDeflector = null;
+let balls = [], launchLocked = false, launchUnlockTimer = null;
 
 function initPhysics(){
   canvas = $('#pinCanvas');
@@ -835,9 +835,22 @@ function initPhysics(){
 
   (function loop(){
     Engine.update(engine, 1000/60);
+    releaseLaunchLockAtExit();
     render();
     requestAnimationFrame(loop);
   })();
+}
+
+function releaseLaunchLockAtExit(){
+  if(!launchLocked) return;
+  const exited = balls.some(ball=>ball.position.y < 286 && ball.position.x < plungerWallX-14);
+  if(exited) unlockLaunch();
+}
+
+function unlockLaunch(){
+  launchLocked = false;
+  clearTimeout(launchUnlockTimer);
+  refreshTop();
 }
 
 function resizeCanvas(){
@@ -853,7 +866,7 @@ function resizeCanvas(){
 }
 
 function buildBoard(){
-  pegs = []; bucketSensors = []; walls = []; launcherParts = []; outerArchParts = []; playfieldPath = [];
+  pegs = []; bucketSensors = []; walls = []; launcherParts = []; outerArchParts = []; playfieldPath = []; domeDeflector = null;
   const wallOpts = { isStatic:true, restitution:0.35, friction:0.05, render:{visible:false} };
 
   const border = buildPlayfieldBorders(wallOpts);
@@ -861,6 +874,9 @@ function buildBoard(){
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
   launcherParts.push(border.exitGate);
+  domeDeflector = Bodies.polygon(W/2, 70, 3, 22, {
+    isStatic:true, restitution:0.68, friction:0.02, label:'dome_deflector', render:{visible:false}
+  });
 
   const topMargin = 126;
   const bottomMargin = 558;
@@ -882,6 +898,8 @@ function buildBoard(){
       pegs.push(peg);
     }
   }
+  pegs.push(Bodies.circle(270, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
+  pegs.push(Bodies.circle(330, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
 
   bonusSensor = Bodies.circle(W/2, 360, 24, { isStatic:true, isSensor:true, label:'bonus' });
 
@@ -904,13 +922,13 @@ function buildBoard(){
   }
   walls.push(Bodies.rectangle(W/2, VIRTUAL_HEIGHT+10, VIRTUAL_WIDTH*2, 20, {isStatic:true, render:{visible:false}}));
 
-  World.add(world, [...walls, ...outerArchParts, ...pegs, ...launcherParts, bonusSensor, ...bucketSensors]);
+  World.add(world, [...walls, ...outerArchParts, ...pegs, ...launcherParts, domeDeflector, bonusSensor, ...bucketSensors]);
 }
 
 function buildPlayfieldBorders(wallOpts){
   const wallX = 0, rightX = VIRTUAL_WIDTH;
   const archRadius = (rightX-wallX)/2;
-  const archCenterX = (wallX+rightX)/2, archCenterY = 204;
+  const archCenterX = (wallX+rightX)/2, archCenterY = 300;
   const archPoints = [];
   for(let i=0;i<=24;i++){
     const angle = Math.PI + Math.PI*i/24;
@@ -1041,7 +1059,7 @@ function render(){
   }
 
   if(launcherParts.length){
-    const laneTop = 204, laneBottom = VIRTUAL_HEIGHT-30;
+    const laneTop = 300, laneBottom = VIRTUAL_HEIGHT-30;
     ctx.save();
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
     ctx.lineWidth = Math.max(4,W*0.02);
@@ -1157,6 +1175,11 @@ $('#pinCanvas').addEventListener('pointerdown', (e)=>{
 });
 async function attemptLaunch(x){
   if (state.ballsLeft <= 0){ toast('Шарики закончились — приходи завтра!', 'ic-gift'); return; }
+  if (launchLocked) return;
+  launchLocked = true;
+  refreshTop();
+  clearTimeout(launchUnlockTimer);
+  launchUnlockTimer = setTimeout(unlockLaunch, 1800);
   state.ballsLeft--;
   refreshTop();
   spawnBall(x);
