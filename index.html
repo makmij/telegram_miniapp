@@ -645,7 +645,7 @@ function refreshTop(){
   $('#heartsBalance').textContent = fmt(state.hearts);
   $('#ballsBalance').textContent = state.ballsLeft;
   $('#ballsBarFill').style.width = Math.max(0, Math.min(100, (state.ballsLeft/DAILY_BALLS)*100)) + '%';
-  $('#launchBtn').disabled = state.ballsLeft <= 0 || launchLocked;
+  $('#launchBtn').disabled = state.ballsLeft <= 0;
   renderBonusDots();
 }
 function renderBonusDots(){
@@ -817,7 +817,8 @@ const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
 let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 560, domeDeflector = null;
-let balls = [], launchLocked = false, launchUnlockTimer = null;
+const LAUNCHER_GHOST_GROUP = -7;
+let balls = [];
 
 function initPhysics(){
   canvas = $('#pinCanvas');
@@ -835,22 +836,20 @@ function initPhysics(){
 
   (function loop(){
     Engine.update(engine, 1000/60);
-    releaseLaunchLockAtExit();
+    restoreBallCollisionsAfterExit();
     render();
     requestAnimationFrame(loop);
   })();
 }
 
-function releaseLaunchLockAtExit(){
-  if(!launchLocked) return;
-  const exited = balls.some(ball=>ball.position.y < 286 && ball.position.x < plungerWallX-14);
-  if(exited) unlockLaunch();
-}
-
-function unlockLaunch(){
-  launchLocked = false;
-  clearTimeout(launchUnlockTimer);
-  refreshTop();
+function restoreBallCollisionsAfterExit(){
+  balls.forEach(ball=>{
+    if(!ball._inLauncher || ball.position.y > 286 || ball.position.x >= plungerWallX-14) return;
+    ball._inLauncher = false;
+    ball.collisionFilter.group = 0;
+    ball.collisionFilter.category = 0x0001;
+    ball.collisionFilter.mask = 0xFFFFFFFF;
+  });
 }
 
 function resizeCanvas(){
@@ -965,12 +964,12 @@ function spawnBall(x){
   x = tunnelMinX + Math.random()*(tunnelMaxX-tunnelMinX);
   const r = 14;
   const ball = Bodies.circle(x, 774, r, {
-    restitution:0.62, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
+    restitution:0.62, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball',
+    collisionFilter:{group:LAUNCHER_GHOST_GROUP, category:0x0001, mask:0xFFFFFFFF}
   });
   const baseLaunchSpeed = 34;
-  const speedJitter = baseLaunchSpeed*0.02;
-  const launchSpeed = baseLaunchSpeed + (Math.random()-0.5)*speedJitter;
-  const launchSideJitter = (Math.random()-0.5)*0.7;
+  const launchSpeed = baseLaunchSpeed;
+  const launchSideJitter = (Math.random()-0.5)*1;
   Body.setVelocity(ball, {x:launchSideJitter, y:-launchSpeed});
   World.add(world, ball);
   balls.push(ball);
@@ -1175,11 +1174,6 @@ $('#pinCanvas').addEventListener('pointerdown', (e)=>{
 });
 async function attemptLaunch(x){
   if (state.ballsLeft <= 0){ toast('Шарики закончились — приходи завтра!', 'ic-gift'); return; }
-  if (launchLocked) return;
-  launchLocked = true;
-  refreshTop();
-  clearTimeout(launchUnlockTimer);
-  launchUnlockTimer = setTimeout(unlockLaunch, 1800);
   state.ballsLeft--;
   refreshTop();
   spawnBall(x);
