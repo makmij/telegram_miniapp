@@ -821,7 +821,7 @@ const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 560, domeDeflector = null;
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550, domeDeflector = null;
 const LAUNCHER_GHOST_GROUP = -7;
 let balls = [];
 
@@ -854,6 +854,7 @@ function restoreBallCollisionsAfterExit(){
     ball.collisionFilter.group = 0;
     ball.collisionFilter.category = 0x0001;
     ball.collisionFilter.mask = 0xFFFFFFFF;
+    Body.setVelocity(ball, {x:(Math.random()-0.5)*1, y:ball.velocity.y});
   });
 }
 
@@ -940,16 +941,17 @@ function buildPlayfieldBorders(wallOpts){
   }
   playfieldPath = [[wallX,H], [wallX,archCenterY], ...archPoints.slice(1,-1), [rightX,archCenterY], [rightX,H]];
   const thickness = 15;
+  const tunnelWallOpts = {...wallOpts, friction:0, frictionAir:0, frictionStatic:0};
   const verticalWalls = [
     Bodies.rectangle(wallX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts),
-    Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts)
+    Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,tunnelWallOpts)
   ];
   const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.62);
   const plungerWall = Bodies.rectangle(plungerWallX,(archCenterY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-archCenterY, {
-    isStatic:true, restitution:0.08, friction:0.02, label:'plunger_wall', render:{visible:false}
+    isStatic:true, restitution:0.08, friction:0, frictionAir:0, frictionStatic:0, label:'plunger_wall', render:{visible:false}
   });
   const exitGate = Bodies.rectangle(plungerWallX-18, archCenterY+26, 52, 10, {
-    isStatic:true, restitution:0.78, friction:0.02, angle:0.55, label:'plunger_gate', render:{visible:false}
+    isStatic:true, restitution:0.78, friction:0, frictionAir:0, frictionStatic:0, angle:0.55, label:'plunger_gate', render:{visible:false}
   });
   return {outer, verticalWalls, plungerWall, exitGate};
 }
@@ -969,13 +971,13 @@ function spawnBall(x){
   x = tunnelMinX + Math.random()*(tunnelMaxX-tunnelMinX);
   const r = 14;
   const ball = Bodies.circle(x, 774, r, {
-    restitution:0.62, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball',
+    restitution:0.62, friction:0, frictionAir:0, frictionStatic:0, density:0.0016, label:'ball',
     collisionFilter:{group:LAUNCHER_GHOST_GROUP, category:0x0001, mask:0xFFFFFFFF}
   });
   const baseLaunchSpeed = 26;
   const launchSpeed = baseLaunchSpeed;
-  const launchSideJitter = (Math.random()-0.5)*1;
-  Body.setVelocity(ball, {x:launchSideJitter, y:-launchSpeed});
+  ball._inLauncher = true;
+  Body.setVelocity(ball, {x:0, y:-launchSpeed});
   World.add(world, ball);
   balls.push(ball);
   haptic('light');
