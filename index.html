@@ -904,7 +904,6 @@ function buildBoard(){
   }
   pegs.push(Bodies.circle(270, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
   pegs.push(Bodies.circle(330, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
-  pegs.push(Bodies.circle(520, 112, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
 
   bonusSensor = Bodies.circle(W/2, 360, 24, { isStatic:true, isSensor:true, label:'bonus' });
 
