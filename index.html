@@ -922,7 +922,7 @@ function buildPlayfieldBorders(wallOpts){
     Bodies.rectangle(wallX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts),
     Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts)
   ];
-  const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.32);
+  const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.62);
   const plungerWall = Bodies.rectangle(plungerWallX,(archCenterY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-archCenterY, {
     isStatic:true, restitution:0.08, friction:0.02, label:'plunger_wall', render:{visible:false}
   });
@@ -942,12 +942,18 @@ function addPhysicalPolyline(points, label, thickness, restitution){
 }
 
 function spawnBall(x){
-  x = 580;
+  const tunnelMinX = plungerWallX + 14 + 2;
+  const tunnelMaxX = VIRTUAL_WIDTH - 14 - 2;
+  x = tunnelMinX + Math.random()*(tunnelMaxX-tunnelMinX);
   const r = 14;
   const ball = Bodies.circle(x, 774, r, {
-    restitution:0.55, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
+    restitution:0.62, friction:0.02, frictionAir:0.0018, density:0.0016, label:'ball'
   });
-  Body.setVelocity(ball, {x:0, y:-34});
+  const baseLaunchSpeed = 34;
+  const speedJitter = baseLaunchSpeed*0.02;
+  const launchSpeed = baseLaunchSpeed + (Math.random()-0.5)*speedJitter;
+  const launchSideJitter = (Math.random()-0.5)*0.7;
+  Body.setVelocity(ball, {x:launchSideJitter, y:-launchSpeed});
   World.add(world, ball);
   balls.push(ball);
   haptic('light');
