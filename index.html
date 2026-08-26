@@ -632,9 +632,62 @@ let state = {
 async function loadState(){
   const raw = await Storage.get(STORAGE_KEY);
   if (raw){ try{ state = Object.assign(state, JSON.parse(raw)); }catch(e){} }
+  if (location.protocol === 'file:') return;
+  try {
+    const response = await fetch(`/api/state?telegram_id=${encodeURIComponent(CURRENT_USER_ID)}`);
+    if (!response.ok) throw new Error('State request failed');
+    const data = await response.json();
+    if (data.player){
+      state.hearts = data.player.hearts;
+      state.ballsLeft = data.player.balls_left;
+      state.lastPlayDate = data.player.last_play_date;
+      state.streakDay = data.player.streak_day;
+      state.bonusHits = data.player.bonus_hits;
+      state.purchased = {};
+      state.history = (data.purchases || []).map(p=>({
+        id:p.item_id, title:p.title, price:p.price,
+        icon:SHOP_ITEMS.find(item=>item.id===p.item_id)?.icon || 'ic-heart',
+        date:p.purchased_at
+      }));
+      (data.purchases || []).forEach(p=>{
+        state.purchased[p.item_id] = (state.purchased[p.item_id] || 0) + 1;
+      });
+    }
+  } catch(e) { console.error('Не удалось загрузить данные с сервера', e); }
 }
 async function saveState(){
   await Storage.set(STORAGE_KEY, JSON.stringify(state));
+  if (location.protocol === 'file:') return;
+  try {
+    await fetch(`/api/state?telegram_id=${encodeURIComponent(CURRENT_USER_ID)}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        player:{
+          hearts:state.hearts,
+          ballsLeft:state.ballsLeft,
+          lastPlayDate:state.lastPlayDate,
+          streakDay:state.streakDay,
+          bonusHits:state.bonusHits
+        }
+      })
+    });
+  } catch(e) { console.error('Не удалось сохранить данные на сервере', e); }
+}
+async function savePurchase(item){
+  if (location.protocol === 'file:') return;
+  try {
+    await fetch('/api/purchase', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        telegramId:CURRENT_USER_ID,
+        itemId:item.id,
+        title:item.title,
+        price:item.price
+      })
+    });
+  } catch(e) { console.error('Не удалось сохранить покупку на сервере', e); }
 }
 
 async function applyGlobalBallGrant(){
@@ -766,6 +819,7 @@ $('#confirmYesBtn').addEventListener('click', async ()=>{
   state.purchased[item.id] = (state.purchased[item.id]||0) + 1;
   state.history.unshift({id:item.id, title:item.title, icon:item.icon, price:item.price, date:new Date().toISOString()});
   await saveState();
+  await savePurchase(item);
   $('#confirmOverlay').classList.remove('show');
   haptic('success');
   confettiBurst();
