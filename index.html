@@ -552,28 +552,41 @@ const CURRENT_USER_NAME = tgUser ? (tgUser.first_name || 'друг') : 'друг
 const STORAGE_KEY = 'cm_pinball_state_' + CURRENT_USER_ID;
 
 /* ============================================================
-   STORAGE LAYER (Telegram CloudStorage w/ in-memory fallback)
+   STORAGE LAYER (Telegram CloudStorage + local fallback)
    NOTE: for a production bot you'd also mirror this to your own
    backend/database so progress survives a reinstall.
 ============================================================ */
 const memoryStore = {};
+function localGet(key){
+  try { return window.localStorage.getItem(key); } catch(e) { return null; }
+}
+function localSet(key, value){
+  try { window.localStorage.setItem(key, value); } catch(e) {}
+}
 const Storage = {
   async get(key){
     if (tg && tg.CloudStorage){
-      return Promise.race([new Promise(res=>{
-        tg.CloudStorage.getItem(key, (err, val)=> res(err ? null : val));
-      }), new Promise(res=>setTimeout(()=>res(null), 1200))]);
+      let cloudValue = null;
+      try {
+        cloudValue = await Promise.race([new Promise(res=>{
+          tg.CloudStorage.getItem(key, (err, val)=> res(err ? null : val));
+        }), new Promise(res=>setTimeout(()=>res(null), 1200))]);
+      } catch(e) {}
+      return cloudValue || localGet(key) || memoryStore[key] || null;
     }
-    return memoryStore[key] ?? null;
+    return localGet(key) || memoryStore[key] || null;
   },
   async set(key, value){
-    if (tg && tg.CloudStorage){
-      return Promise.race([
-        new Promise(res=> tg.CloudStorage.setItem(key, value, ()=>res(true))),
-        new Promise(res=>setTimeout(()=>res(false), 1200))
-      ]);
-    }
+    localSet(key, value);
     memoryStore[key] = value;
+    if (tg && tg.CloudStorage){
+      try {
+        return await Promise.race([
+          new Promise(res=> tg.CloudStorage.setItem(key, value, ()=>res(true))),
+          new Promise(res=>setTimeout(()=>res(false), 1200))
+        ]);
+      } catch(e) {}
+    }
     return true;
   }
 };
