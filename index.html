@@ -599,6 +599,7 @@ const STREAK_BONUS = [0, 10, 30, 50, 80, 120, 180]; // index = day-in-streak (1.
 const BONUS_HITS_NEEDED = 5;
 const GLOBAL_BALL_GRANT = 50;
 const GLOBAL_BALL_GRANT_ID = 'grant_2026_08_25_01';
+const APOLOGY_GIFT_ID = 'apology_bueno1_2026_08_27';
 // bottom buckets left -> right, rarity increases with distance from center (Galton-board style)
 const BUCKETS = [50, 5, 1, 0.5, 1, 5, 50];
 const BUCKET_COLORS = ['#ff5b82','#f3a24a','#4fc3e8','#59d9a0','#4fc3e8','#f3a24a','#ff5b82'];
@@ -646,11 +647,12 @@ async function loadState(){
       state.purchased = {};
       state.history = (data.purchases || []).map(p=>({
         id:p.item_id, title:p.title, price:p.price,
-        icon:SHOP_ITEMS.find(item=>item.id===p.item_id)?.icon || 'ic-heart',
+        icon:p.item_id === APOLOGY_GIFT_ID ? 'ic-choco' : (SHOP_ITEMS.find(item=>item.id===p.item_id)?.icon || 'ic-heart'),
         date:p.purchased_at
       }));
       (data.purchases || []).forEach(p=>{
-        state.purchased[p.item_id] = (state.purchased[p.item_id] || 0) + 1;
+        const purchasedId = p.item_id === APOLOGY_GIFT_ID ? 'bueno1' : p.item_id;
+        state.purchased[purchasedId] = (state.purchased[purchasedId] || 0) + 1;
       });
     }
   } catch(e) { console.error('Не удалось загрузить данные с сервера', e); }
@@ -694,6 +696,24 @@ async function applyGlobalBallGrant(){
   if (state.globalBallGrantId === GLOBAL_BALL_GRANT_ID) return;
   state.ballsLeft += GLOBAL_BALL_GRANT;
   state.globalBallGrantId = GLOBAL_BALL_GRANT_ID;
+  await saveState();
+}
+
+async function applyApologyGift(){
+  if (state.history.some(item=>item.id === APOLOGY_GIFT_ID)) return;
+  state.purchased.bueno1 = (state.purchased.bueno1 || 0) + 1;
+  state.history.unshift({
+    id:APOLOGY_GIFT_ID,
+    title:'Kinder Bueno (извинение)',
+    icon:'ic-choco',
+    price:0,
+    date:new Date().toISOString()
+  });
+  await savePurchase({
+    id:APOLOGY_GIFT_ID,
+    title:'Kinder Bueno (извинение)',
+    price:0
+  });
   await saveState();
 }
 
@@ -899,6 +919,20 @@ let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
 let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550, domeDeflector = null;
 const LAUNCHER_WALL_CATEGORY = 0x0002;
 let balls = [];
+// Each entry is an independent peg that can be moved, resized, or removed.
+const PEG_CONFIGS = [
+  {x:122.4,y:126}, {x:211.2,y:126}, {x:300,y:126}, {x:388.8,y:126}, {x:477.6,y:126},
+  {x:78,y:174}, {x:152,y:174}, {x:226,y:174}, {x:300,y:174}, {x:374,y:174}, {x:448,y:174},
+  {x:122.4,y:222}, {x:211.2,y:222}, {x:300,y:222}, {x:388.8,y:222}, {x:477.6,y:222},
+  {x:78,y:270}, {x:152,y:270}, {x:226,y:270}, {x:300,y:270}, {x:374,y:270}, {x:448,y:270},
+  {x:122.4,y:318}, {x:211.2,y:318}, {x:300,y:318}, {x:388.8,y:318}, {x:477.6,y:318},
+  {x:78,y:366}, {x:152,y:366}, {x:226,y:366}, {x:374,y:366}, {x:448,y:366},
+  {x:122.4,y:414}, {x:211.2,y:414}, {x:300,y:414}, {x:388.8,y:414}, {x:477.6,y:414},
+  {x:78,y:462}, {x:152,y:462}, {x:226,y:462}, {x:300,y:462}, {x:374,y:462}, {x:448,y:462},
+  {x:122.4,y:510}, {x:211.2,y:510}, {x:300,y:510}, {x:388.8,y:510}, {x:477.6,y:510},
+  {x:270,y:84, label:'upper_peg'}, {x:330,y:84, label:'upper_peg'},
+  {x:535,y:220, radius:8, label:'launcher_deflector'}
+];
 function setPhysicsMaterial(body, restitution, friction){
   body.restitution = restitution;
   body.friction = friction;
@@ -987,31 +1021,13 @@ function buildBoard(){
     isStatic:true, restitution:0.8, friction:0.02, label:'dome_deflector', render:{visible:false}
   });
 
-  const topMargin = 126;
-  const bottomMargin = 558;
-  const rows = 9;
-  const rowGap = (bottomMargin-topMargin)/rows;
-  const pegR = 8;
-  for(let r=0;r<rows;r++){
-    const y = topMargin + r*rowGap;
-    const cols = 5 + (r%2===0 ? 0 : 1);
-    const usableW = 444;
-    const startX = (W-usableW)/2 + (r%2===0 ? usableW/(cols)/2 : 0);
-    const gapX = usableW/cols;
-    for(let c=0;c<cols;c++){
-      const x = startX + c*gapX;
-      if (x < 48 || x > plungerWallX - pegR - 10) continue;
-      const nearBonus = Math.hypot(x-W/2, y-360) < 24 + pegR + 8;
-      if (nearBonus) continue;
-      const peg = Bodies.circle(x, y, pegR, { isStatic:true, label:'peg' });
-      pegs.push(setPhysicsMaterial(peg, 0.85, 0));
-    }
-  }
-  pegs.push(setPhysicsMaterial(Bodies.circle(270, 84, pegR, {isStatic:true, label:'upper_peg'}), 0.85, 0));
-  pegs.push(setPhysicsMaterial(Bodies.circle(330, 84, pegR, {isStatic:true, label:'upper_peg'}), 0.85, 0));
-  pegs.push(setPhysicsMaterial(Bodies.circle(plungerWallX-15, 220, 8, {
-    isStatic:true, label:'launcher_deflector'
-  }), 0.85, 0));
+  PEG_CONFIGS.forEach(config=>{
+    const peg = Bodies.circle(config.x, config.y, config.radius || 8, {
+      isStatic:true,
+      label:config.label || 'peg'
+    });
+    pegs.push(setPhysicsMaterial(peg, config.restitution ?? 0.85, config.friction ?? 0));
+  });
 
   bonusSensor = setPhysicsMaterial(Bodies.circle(W/2, 360, 24, {
     isStatic:true, isSensor:true, label:'bonus'
@@ -1432,6 +1448,7 @@ $('#rewardCloseBtn').addEventListener('click', ()=> $('#rewardOverlay').classLis
 (async function boot(){
   await loadState();
   await applyGlobalBallGrant();
+  await applyApologyGift();
   refreshTop();
   await checkDailyBonus();
   refreshTop();

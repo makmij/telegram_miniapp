@@ -15,6 +15,15 @@ export default async function handler(request, response) {
       return response.status(400).json({ error: 'Invalid purchase data' });
     }
 
+    if (body.itemId === 'apology_bueno1_2026_08_27') {
+      const existing = await fetch(
+        `${SUPABASE_URL}/rest/v1/purchases?telegram_id=eq.${encodeURIComponent(String(body.telegramId))}&item_id=eq.${encodeURIComponent(body.itemId)}&select=id&limit=1`,
+        {headers: supabaseHeaders()}
+      );
+      if (!existing.ok) throw new Error(await existing.text());
+      if ((await existing.json()).length) return response.status(200).json({ok:true, alreadyGranted:true});
+    }
+
     const result = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
       method: 'POST',
       headers: {
@@ -42,4 +51,11 @@ export default async function handler(request, response) {
     console.error(error);
     return response.status(500).json({ error: 'Server error' });
   }
+}
+
+function supabaseHeaders() {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`
+  };
 }
