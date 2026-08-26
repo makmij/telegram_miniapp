@@ -699,7 +699,15 @@ async function applyGlobalBallGrant(){
 
 function todayStr(){
   const d = new Date();
-  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  const month = String(d.getMonth()+1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+function normalizeDateKey(value){
+  if (!value) return null;
+  const parts = String(value).split('-');
+  if (parts.length !== 3) return value;
+  return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
 }
 
 /* ============================================================
@@ -852,23 +860,23 @@ function renderHistory(){
 ============================================================ */
 async function checkDailyBonus(){
   const today = todayStr();
-  if (state.lastPlayDate === today) return;
+  if (normalizeDateKey(state.lastPlayDate) === today) return;
   const wasFirstEver = !state.lastPlayDate;
   state.streakDay = wasFirstEver ? 1 : (state.streakDay % 7) + 1;
   state.lastPlayDate = today;
-  state.ballsLeft = DAILY_BALLS;
   const bonus = STREAK_BONUS[state.streakDay] || STREAK_BONUS[STREAK_BONUS.length-1];
   state.ballsLeft += bonus;
   await saveState();
   showDailyModal(bonus);
 }
 function showDailyModal(bonus){
-  $('#dailyText').textContent = `Привет, ${CURRENT_USER_NAME}! День ${state.streakDay} подряд — сегодня доступно ${DAILY_BALLS} базовых шариков + ${bonus} бонусных.`;
+  $('#dailyText').textContent = `Привет, ${CURRENT_USER_NAME}! День ${state.streakDay} подряд — бонус: +${bonus} шариков.`;
   const row = $('#streakRow'); row.innerHTML='';
   for(let i=1;i<=7;i++){
     const d = document.createElement('div');
     d.className='streak-day' + (i<state.streakDay?' done':'') + (i===state.streakDay?' current':'');
-    d.innerHTML = `${i}д<b>+${STREAK_BONUS[i]}</b>`;
+    const dayBonus = STREAK_BONUS[i] || STREAK_BONUS[STREAK_BONUS.length-1];
+    d.innerHTML = `${i}д<b>+${dayBonus}</b>`;
     row.appendChild(d);
   }
   $('#dailyOverlay').classList.add('show');
