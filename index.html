@@ -1359,7 +1359,11 @@ $('#spinBtn').addEventListener('click', async ()=>{
     wheelRotation = startRot + (finalRotation - startRot)*ease;
     drawWheel();
     if(p<1){ requestAnimationFrame(animate); }
-    else finishSpin(winIdx);
+    else {
+      const landedAngle = ((-Math.PI/2 - wheelRotation) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+      const landedIdx = Math.floor(landedAngle / seg);
+      finishSpin(landedIdx);
+    }
   }
   requestAnimationFrame(animate);
 });
