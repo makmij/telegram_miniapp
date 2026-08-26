@@ -897,8 +897,14 @@ const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
 let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550, domeDeflector = null;
-const LAUNCHER_GHOST_GROUP = -7;
+const LAUNCHER_WALL_CATEGORY = 0x0002;
 let balls = [];
+function setPhysicsMaterial(body, restitution, friction){
+  body.restitution = restitution;
+  body.friction = friction;
+  body.frictionStatic = friction;
+  return body;
+}
 
 function initPhysics(){
   canvas = $('#pinCanvas');
@@ -908,7 +914,7 @@ function initPhysics(){
   if(window.ResizeObserver) new ResizeObserver(resizeCanvas).observe($('.board-wrap'));
 
   engine = Engine.create();
-  engine.gravity.y = 0.72;
+  engine.gravity.y = 0.5;
   world = engine.world;
 
   buildBoard();
@@ -916,15 +922,39 @@ function initPhysics(){
 
   (function loop(){
     Engine.update(engine, 1000/60);
+    recoverLauncherBalls();
+    applyLauncherExitForce();
     restoreBallCollisionsAfterExit();
     render();
     requestAnimationFrame(loop);
   })();
 }
 
+function applyLauncherExitForce(){
+  balls.forEach(ball=>{
+    const crossedExit = ball._inLauncher && !ball._exitForceApplied &&
+      ball._previousY > 310 && ball.position.y <= 310;
+    if(crossedExit){
+      Body.applyForce(ball, ball.position, {
+        x:(Math.random()-0.5)*0.0015,
+        y:0
+      });
+      ball._exitForceApplied = true;
+    }
+    ball._previousY = ball.position.y;
+  });
+}
+
+function recoverLauncherBalls(){
+  balls.forEach(ball=>{
+    if(!ball._inLauncher || ball.position.y <= 286) return;
+    if(ball.velocity.y > -8) Body.setVelocity(ball, {x:ball.velocity.x, y:-12});
+  });
+}
+
 function restoreBallCollisionsAfterExit(){
   balls.forEach(ball=>{
-    if(!ball._inLauncher || ball.position.y > 286 || ball.position.x >= plungerWallX-14) return;
+    if(!ball._inLauncher || ball.position.y > 286) return;
     ball._inLauncher = false;
     ball.collisionFilter.group = 0;
     ball.collisionFilter.category = 0x0001;
@@ -973,22 +1003,19 @@ function buildBoard(){
       if (x < 48 || x > plungerWallX - pegR - 10) continue;
       const nearBonus = Math.hypot(x-W/2, y-360) < 24 + pegR + 8;
       if (nearBonus) continue;
-      const peg = Bodies.circle(x, y, pegR, { isStatic:true, restitution:0.65, friction:0.02, label:'peg' });
-      pegs.push(peg);
+      const peg = Bodies.circle(x, y, pegR, { isStatic:true, label:'peg' });
+      pegs.push(setPhysicsMaterial(peg, 0.85, 0));
     }
   }
-  pegs.push(Bodies.circle(270, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
-  pegs.push(Bodies.circle(330, 84, pegR, {isStatic:true, restitution:0.72, friction:0.02, label:'upper_peg'}));
-  pegs.push(Bodies.circle(plungerWallX-15, 220, 8, {
-    isStatic:true, restitution:0.8, friction:0.02, label:'launcher_deflector'
-  }));
+  pegs.push(setPhysicsMaterial(Bodies.circle(270, 84, pegR, {isStatic:true, label:'upper_peg'}), 0.85, 0));
+  pegs.push(setPhysicsMaterial(Bodies.circle(330, 84, pegR, {isStatic:true, label:'upper_peg'}), 0.85, 0));
+  pegs.push(setPhysicsMaterial(Bodies.circle(plungerWallX-15, 220, 8, {
+    isStatic:true, label:'launcher_deflector'
+  }), 0.85, 0));
 
-  bonusSensor = Bodies.circle(W/2, 360, 24, { isStatic:true, isSensor:true, label:'bonus' });
-
-  const guideOpts = { isStatic:true, restitution:0.3, render:{visible:false} };
-  const guideY = bottomMargin + 18;
-  walls.push(Bodies.rectangle(72, guideY, 12, 198, {...guideOpts, angle: 0.35}));
-  walls.push(Bodies.rectangle(528, guideY, 12, 198, {...guideOpts, angle: -0.35}));
+  bonusSensor = setPhysicsMaterial(Bodies.circle(W/2, 360, 24, {
+    isStatic:true, isSensor:true, label:'bonus'
+  }), 0.95, 0);
 
   const bucketTop = 774;
   const n = BUCKETS.length;
@@ -996,7 +1023,7 @@ function buildBoard(){
   const bw = mainWidth/n;
   bucketSensors = [];
   for(let i=0;i<=n;i++){
-    walls.push(Bodies.rectangle(i*bw, bucketTop + 63, 4, 144, {isStatic:true, friction:0.05, render:{visible:false}}));
+    walls.push(Bodies.rectangle(i*bw, bucketTop + 90, 4, 120, {isStatic:true, friction:0.05, render:{visible:false}}));
   }
   for(let i=0;i<n;i++){
     const sensor = Bodies.rectangle(i*bw + bw/2, bucketTop + 99, bw-6, 10, { isStatic:true, isSensor:true, label:'bucket_'+i });
@@ -1028,11 +1055,19 @@ function buildPlayfieldBorders(wallOpts){
     Bodies.rectangle(wallX,(archCenterY+H)/2,thickness,H-archCenterY,wallOpts),
     Bodies.rectangle(rightX,(archCenterY+H)/2,thickness,H-archCenterY,tunnelWallOpts)
   ];
+  verticalWalls[1].restitution = 0.02;
+  verticalWalls[1].friction = 0.01;
+  verticalWalls[1].frictionStatic = 0.01;
   const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.65);
   const plungerEndY = 310;
   const plungerWall = Bodies.rectangle(plungerWallX,(plungerEndY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-plungerEndY, {
-    isStatic:true, restitution:0, friction:0, frictionAir:0, frictionStatic:0, label:'plunger_wall', render:{visible:false}
+    isStatic:true, restitution:0.72, friction:0.01, frictionAir:0, frictionStatic:0,
+    collisionFilter:{category:LAUNCHER_WALL_CATEGORY, mask:0xFFFFFFFF},
+    label:'plunger_wall', render:{visible:false}
   });
+  plungerWall.restitution = 0.72;
+  plungerWall.friction = 0.01;
+  plungerWall.frictionStatic = 0.01;
   return {outer, verticalWalls, plungerWall};
 }
 
@@ -1050,11 +1085,14 @@ function spawnBall(x){
   const safeSpawnX = plungerWallX + (tunnelWidth / 2);
   const safeSpawnY = VIRTUAL_HEIGHT - 40;
   const ball = Bodies.circle(safeSpawnX, safeSpawnY, 11, {
-    restitution:0.6, friction:0, frictionAir:0.002, frictionStatic:0, density:0.0016, label:'ball',
+    frictionAir:0.002, density:0.0016, label:'ball',
     collisionFilter:{group:-1, category:0x0001, mask:0xFFFFFFFF}
   });
+  setPhysicsMaterial(ball, 0.6, 0);
   ball._inLauncher = true;
-  Body.setVelocity(ball, {x:0, y:-26});
+  ball._previousY = safeSpawnY;
+  ball._exitForceApplied = false;
+  Body.setVelocity(ball, {x:0, y:-16});
   World.add(world, ball);
   balls.push(ball);
   haptic('light');
@@ -1071,6 +1109,11 @@ function onCollision(ev){
     } else if (other.label && other.label.startsWith('bucket_')){
       const idx = parseInt(other.label.split('_')[1]);
       handleBucketLand(ball, idx);
+    } else if (other.label === 'plunger_wall' && !ball._inLauncher && ball.position.x < plungerWallX){
+      Body.setVelocity(ball, {
+        x: -Math.max(5, Math.abs(ball.velocity.x)),
+        y: Math.min(ball.velocity.y, -1.5)
+      });
     }
   });
 }
