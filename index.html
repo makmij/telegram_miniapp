@@ -508,6 +508,16 @@ html,body{
     </div>
   </div>
 
+  <!-- APOLOGY GIFT MODAL -->
+  <div class="overlay" id="apologyOverlay">
+    <div class="modal">
+      <svg class="modal-icon"><use href="#ic-choco"/></svg>
+      <h2>Извините за неудобства</h2>
+      <p>Вот ваш подарок — один Kinder Bueno &lt;3</p>
+      <button class="modal-btn" id="apologyClaimBtn">Забрать подарок</button>
+    </div>
+  </div>
+
   <!-- REWARD MODAL -->
   <div class="overlay" id="rewardOverlay">
     <div class="modal">
@@ -599,7 +609,8 @@ const STREAK_BONUS = [0, 10, 30, 50, 80, 120, 180]; // index = day-in-streak (1.
 const BONUS_HITS_NEEDED = 5;
 const GLOBAL_BALL_GRANT = 50;
 const GLOBAL_BALL_GRANT_ID = 'grant_2026_08_25_01';
-const APOLOGY_GIFT_ID = 'apology_bueno1_2026_08_27';
+const LEGACY_APOLOGY_GIFT_ID = 'apology_bueno1_2026_08_27';
+const APOLOGY_GIFT_ID = 'apology_bueno1_popup_2026_08_27';
 // bottom buckets left -> right, rarity increases with distance from center (Galton-board style)
 const BUCKETS = [50, 5, 1, 0.5, 1, 5, 50];
 const BUCKET_COLORS = ['#ff5b82','#f3a24a','#4fc3e8','#59d9a0','#4fc3e8','#f3a24a','#ff5b82'];
@@ -647,11 +658,11 @@ async function loadState(){
       state.purchased = {};
       state.history = (data.purchases || []).map(p=>({
         id:p.item_id, title:p.title, price:p.price,
-        icon:p.item_id === APOLOGY_GIFT_ID ? 'ic-choco' : (SHOP_ITEMS.find(item=>item.id===p.item_id)?.icon || 'ic-heart'),
+        icon:[APOLOGY_GIFT_ID, LEGACY_APOLOGY_GIFT_ID].includes(p.item_id) ? 'ic-choco' : (SHOP_ITEMS.find(item=>item.id===p.item_id)?.icon || 'ic-heart'),
         date:p.purchased_at
       }));
       (data.purchases || []).forEach(p=>{
-        const purchasedId = p.item_id === APOLOGY_GIFT_ID ? 'bueno1' : p.item_id;
+        const purchasedId = [APOLOGY_GIFT_ID, LEGACY_APOLOGY_GIFT_ID].includes(p.item_id) ? 'bueno1' : p.item_id;
         state.purchased[purchasedId] = (state.purchased[purchasedId] || 0) + 1;
       });
     }
@@ -699,9 +710,15 @@ async function applyGlobalBallGrant(){
   await saveState();
 }
 
-async function applyApologyGift(){
+function showApologyOffer(){
+  if (!state.history.some(item=>item.id === APOLOGY_GIFT_ID)) {
+    $('#apologyOverlay').classList.add('show');
+  }
+}
+document.querySelector('#apologyClaimBtn').addEventListener('click', async ()=>{
   if (state.history.some(item=>item.id === APOLOGY_GIFT_ID)) return;
-  state.purchased.bueno1 = (state.purchased.bueno1 || 0) + 1;
+  const alreadyReceivedLegacyGift = state.history.some(item=>item.id === LEGACY_APOLOGY_GIFT_ID);
+  if (!alreadyReceivedLegacyGift) state.purchased.bueno1 = (state.purchased.bueno1 || 0) + 1;
   state.history.unshift({
     id:APOLOGY_GIFT_ID,
     title:'Kinder Bueno (извинение)',
@@ -715,7 +732,10 @@ async function applyApologyGift(){
     price:0
   });
   await saveState();
-}
+  $('#apologyOverlay').classList.remove('show');
+  refreshTop();
+  toast('Подарок Kinder Bueno получен!', 'ic-choco');
+});
 
 function todayStr(){
   const d = new Date();
@@ -1448,9 +1468,9 @@ $('#rewardCloseBtn').addEventListener('click', ()=> $('#rewardOverlay').classLis
 (async function boot(){
   await loadState();
   await applyGlobalBallGrant();
-  await applyApologyGift();
   refreshTop();
   await checkDailyBonus();
+  showApologyOffer();
   refreshTop();
   initPhysics();
 })();
