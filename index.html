@@ -490,7 +490,7 @@ html,body{
       <p>Ты поразил(а) бонус-цель 5 раз! Крути колесо и получай дополнительные шарики.</p>
       <div class="wheel-wrap">
         <svg class="wheel-pin" viewBox="0 0 22 26"><path d="M11 26 L1 8 A11 11 0 0121 8 Z" fill="url(#gGold)" stroke="rgba(255,255,255,.6)" stroke-width="0.7"/></svg>
-        <canvas id="wheelCanvas" width="500" height="500"></canvas>
+        <canvas id="wheelCanvas" width="250" height="250"></canvas>
         <div class="wheel-hub"><svg class="icon"><use href="#ic-orb"/></svg></div>
       </div>
       <button class="modal-btn" id="spinBtn">Крутить!</button>
@@ -1325,7 +1325,7 @@ function drawWheel(){
     wctx.rotate(i*seg + seg/2);
     wctx.textAlign='right';
     wctx.fillStyle='rgba(0,0,0,.75)';
-    wctx.font='800 168px Baloo 2';
+    wctx.font='800 84px Baloo 2';
     wctx.fillText('+'+WHEEL_SEGMENTS[i], r-16, 12);
     wctx.fillStyle='#fff';
     wctx.fillText('+'+WHEEL_SEGMENTS[i], r-18, 10);
