@@ -1024,7 +1024,7 @@ const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
 const PHYSICS_SPEED = 4.05;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550;
+let pegs = [], arcParts = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550;
 const LAUNCHER_WALL_CATEGORY = 0x0002;
 let balls = [];
 // Each entry is an independent peg that can be moved, resized, or removed.
@@ -1040,6 +1040,10 @@ const PEG_CONFIGS = [
   {x:122.4,y:510}, {x:211.2,y:510}, {x:300,y:510}, {x:388.8,y:510}, {x:477.6,y:510},
   {x:260,y:84, label:'upper_peg'}, {x:350,y:84, label:'upper_peg'}, {x:300,y:40, radius:12, label:'top_peg'},
   // {x:535,y:220, radius:8, label:'launcher_deflector'}
+];
+// Editable small arc obstacles. x/y mark the center of the arc base.
+const ARC_CONFIGS = [
+  {x:300, y:620, width:110, height:38, thickness:10, rotation:0}
 ];
 function setPhysicsMaterial(body, restitution, friction){
   body.restitution = restitution;
@@ -1121,7 +1125,7 @@ function resizeCanvas(){
 }
 
 function buildBoard(){
-  pegs = []; bucketSensors = []; walls = []; launcherParts = []; outerArchParts = []; playfieldPath = [];
+  pegs = []; arcParts = []; bucketSensors = []; walls = []; launcherParts = []; outerArchParts = []; playfieldPath = [];
   const wallOpts = { isStatic:true, restitution:0.35, friction:0.05, render:{visible:false} };
 
   const border = buildPlayfieldBorders(wallOpts);
@@ -1134,6 +1138,10 @@ function buildBoard(){
       label:config.label || 'peg'
     });
     pegs.push(setPhysicsMaterial(peg, config.restitution ?? 0.85, config.friction ?? 0));
+  });
+  ARC_CONFIGS.forEach(config=>{
+    const points = createArcPoints(config);
+    arcParts.push(...addPhysicalPolyline(points, 'arc_obstacle', config.thickness || 10, config.restitution ?? 0.7));
   });
 
   bonusSensor = setPhysicsMaterial(Bodies.circle(W/2, 360, 24, {
@@ -1154,7 +1162,22 @@ function buildBoard(){
   }
   walls.push(Bodies.rectangle(W/2, VIRTUAL_HEIGHT+10, VIRTUAL_WIDTH*2, 20, {isStatic:true, render:{visible:false}}));
 
-  World.add(world, [...walls, ...outerArchParts, ...pegs, ...launcherParts, bonusSensor, ...bucketSensors]);
+  World.add(world, [...walls, ...outerArchParts, ...pegs, ...arcParts, ...launcherParts, bonusSensor, ...bucketSensors]);
+}
+
+function createArcPoints(config){
+  const angleOffset = (config.rotation || 0) * Math.PI / 180;
+  const points = [];
+  for(let i=0; i<=16; i++){
+    const angle = Math.PI - Math.PI * i / 16;
+    const localX = Math.cos(angle) * config.width / 2;
+    const localY = -Math.sin(angle) * config.height;
+    points.push([
+      config.x + localX * Math.cos(angleOffset) - localY * Math.sin(angleOffset),
+      config.y + localX * Math.sin(angleOffset) + localY * Math.cos(angleOffset)
+    ]);
+  }
+  return points;
 }
 
 function buildPlayfieldBorders(wallOpts){
@@ -1394,6 +1417,27 @@ function render(){
     ctx.fillStyle = '#1a0d33';
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('x'+BUCKETS[i], cx, cy+0.5);
+    ctx.restore();
+  });
+
+  // editable arc obstacles
+  ARC_CONFIGS.forEach(config=>{
+    const points = createArcPoints(config);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    points.slice(1).forEach(point=>ctx.lineTo(point[0], point[1]));
+    ctx.strokeStyle = '#f3c04a';
+    ctx.lineWidth = config.thickness || 10;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(243,192,74,.65)';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,248,224,.8)';
+    ctx.lineWidth = Math.max(2, (config.thickness || 10) * .22);
+    ctx.shadowBlur = 0;
+    ctx.stroke();
     ctx.restore();
   });
 
