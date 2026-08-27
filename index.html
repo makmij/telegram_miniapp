@@ -733,7 +733,12 @@ document.querySelector('#useYesBtn').addEventListener('click', async ()=>{
     const response = await fetch('/api/use-item', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({telegramId:CURRENT_USER_ID, itemId:item.id, purchaseId:item.recordId || null})
+      body:JSON.stringify({
+        telegramId:CURRENT_USER_ID,
+        userName:CURRENT_USER_NAME,
+        itemId:item.id,
+        purchaseId:item.recordId || null
+      })
     });
     if (!response.ok) throw new Error('Use item request failed');
     item.used = true;

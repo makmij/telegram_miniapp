@@ -10,7 +10,7 @@ export default async function handler(request, response) {
 
   try {
     const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
-    if (!body?.telegramId || !body?.itemId) {
+    if (!body?.telegramId || !body?.itemId || !body?.userName) {
       return response.status(400).json({error:'Invalid item data'});
     }
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_OWNER_ID) {
@@ -29,13 +29,16 @@ export default async function handler(request, response) {
     const purchase = purchases[0];
     if (!purchase) return response.status(409).json({error:'Item already used or not found'});
 
-    const message = `я использовала предмет "${purchase.title}"`;
-    const telegramResult = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:TELEGRAM_OWNER_ID, text:message})
-    });
-    if (!telegramResult.ok) throw new Error(await telegramResult.text());
+    const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const ownerMessage = `${body.userName} использовала предмет \"${purchase.title}\"`;
+    const userMessage = `Вы использовали предмет \"${purchase.title}\", он скоро будет у вас :)`;
+    const [ownerResult, userResult] = await Promise.all([
+      sendTelegramMessage(telegramUrl, TELEGRAM_OWNER_ID, ownerMessage),
+      sendTelegramMessage(telegramUrl, String(body.telegramId), userMessage)
+    ]);
+    if (!ownerResult.ok || !userResult.ok) {
+      throw new Error('Telegram notification failed');
+    }
 
     const updateResult = await fetch(`${SUPABASE_URL}/rest/v1/purchases?id=eq.${encodeURIComponent(purchase.id)}`, {
       method:'PATCH',
@@ -52,4 +55,12 @@ export default async function handler(request, response) {
 
 function supabaseHeaders() {
   return {apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`};
+}
+
+async function sendTelegramMessage(url, chatId, text) {
+  return fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:chatId, text})
+  });
 }
