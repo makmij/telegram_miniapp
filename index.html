@@ -967,12 +967,12 @@ const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
-let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550, domeDeflector = null;
+let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550;
 const LAUNCHER_WALL_CATEGORY = 0x0002;
 let balls = [];
 // Each entry is an independent peg that can be moved, resized, or removed.
 const PEG_CONFIGS = [
-  {x:122.4,y:126}, {x:211.2,y:126}, {x:300,y:126}, {x:388.8,y:126}, {x:477.6,y:126},
+  {x:122.4,y:126}, {x:211.2,y:126}, {x:300,y:126}, {x:388.8,y:126},
   {x:78,y:174}, {x:152,y:174}, {x:226,y:174}, {x:300,y:174}, {x:374,y:174}, {x:448,y:174},
   {x:122.4,y:222}, {x:211.2,y:222}, {x:300,y:222}, {x:388.8,y:222}, {x:477.6,y:222},
   {x:78,y:270}, {x:152,y:270}, {x:226,y:270}, {x:300,y:270}, {x:374,y:270}, {x:448,y:270},
@@ -981,8 +981,8 @@ const PEG_CONFIGS = [
   {x:122.4,y:414}, {x:211.2,y:414}, {x:300,y:414}, {x:388.8,y:414}, {x:477.6,y:414},
   {x:78,y:462}, {x:152,y:462}, {x:226,y:462}, {x:300,y:462}, {x:374,y:462}, {x:448,y:462},
   {x:122.4,y:510}, {x:211.2,y:510}, {x:300,y:510}, {x:388.8,y:510}, {x:477.6,y:510},
-  {x:270,y:84, label:'upper_peg'}, {x:330,y:84, label:'upper_peg'},
-  {x:535,y:220, radius:8, label:'launcher_deflector'}
+  {x:260,y:84, label:'upper_peg'}, {x:350,y:84, label:'upper_peg'}, {x:300,y:40, radius:12, label:'top_peg'},
+  // {x:535,y:220, radius:8, label:'launcher_deflector'}
 ];
 function setPhysicsMaterial(body, restitution, friction){
   body.restitution = restitution;
@@ -1061,17 +1061,13 @@ function resizeCanvas(){
 }
 
 function buildBoard(){
-  pegs = []; bucketSensors = []; walls = []; launcherParts = []; outerArchParts = []; playfieldPath = []; domeDeflector = null;
+  pegs = []; bucketSensors = []; walls = []; launcherParts = []; outerArchParts = []; playfieldPath = [];
   const wallOpts = { isStatic:true, restitution:0.35, friction:0.05, render:{visible:false} };
 
   const border = buildPlayfieldBorders(wallOpts);
   outerArchParts = border.outer;
   walls.push(...border.verticalWalls);
   launcherParts.push(border.plungerWall);
-  domeDeflector = Bodies.polygon(W / 2, 90, 3, 16, {
-    isStatic:true, restitution:0.8, friction:0.02, label:'dome_deflector', render:{visible:false}
-  });
-
   PEG_CONFIGS.forEach(config=>{
     const peg = Bodies.circle(config.x, config.y, config.radius || 8, {
       isStatic:true,
@@ -1098,7 +1094,7 @@ function buildBoard(){
   }
   walls.push(Bodies.rectangle(W/2, VIRTUAL_HEIGHT+10, VIRTUAL_WIDTH*2, 20, {isStatic:true, render:{visible:false}}));
 
-  World.add(world, [...walls, ...outerArchParts, ...pegs, ...launcherParts, domeDeflector, bonusSensor, ...bucketSensors]);
+  World.add(world, [...walls, ...outerArchParts, ...pegs, ...launcherParts, bonusSensor, ...bucketSensors]);
 }
 
 function buildPlayfieldBorders(wallOpts){
