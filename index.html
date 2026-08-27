@@ -874,8 +874,7 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
 function renderShop(){
   const list = $('#shopList'); list.innerHTML='';
   SHOP_ITEMS.forEach((item, idx)=>{
-    const previousGift = SHOP_ITEMS.slice(0,idx).reverse().find(shopItem=>shopItem.type!=='balls');
-    const unlocked = item.type==='balls' || !previousGift || (state.purchased[previousGift.id] > 0);
+    const unlocked = true;
     const card = document.createElement('div');
     card.className = 'item-card' + (unlocked ? '' : ' locked');
     card.innerHTML = `
