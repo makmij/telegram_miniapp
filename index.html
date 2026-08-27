@@ -1235,7 +1235,7 @@ async function handleBucketLand(ball, idx){
   if (ball._landed) return;
   ball._landed = true;
   const mult = BUCKETS[idx];
-  const reward = Math.max(1, Math.round(mult*2));
+  const reward = mult;
   state.hearts += reward;
   World.remove(world, ball);
   balls = balls.filter(b=>b!==ball);
