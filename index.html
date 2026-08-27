@@ -116,6 +116,19 @@ html,body{
   pointer-events:none; animation:floatUp 1.15s ease-out forwards;
 }
 @keyframes floatUp{0%{opacity:0; transform:translate(-50%,0) scale(.7)} 15%{opacity:1; transform:translate(-50%,-6px) scale(1.15)} 100%{opacity:0; transform:translate(-50%,-62px) scale(1)}}
+.heart-collect-layer{position:absolute; inset:0; z-index:9; pointer-events:none; overflow:hidden;}
+.heart-particle{
+  position:absolute; width:22px; height:22px; display:grid; place-items:center;
+  color:var(--rose-2); font-size:18px; line-height:1;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.45));
+  opacity:0; transform:translate(-50%,-50%) translate(0,0) rotate(0deg) scale(.45);
+  transition:transform .68s cubic-bezier(.18,.86,.24,1.08), opacity .18s ease;
+}
+.heart-particle::after{content:'♥'; text-shadow:0 0 10px rgba(255,91,130,.8);}
+.heart-particle.fly{opacity:1; transform:translate(-50%,-50%) translate(var(--scatter-x),var(--scatter-y)) rotate(var(--scatter-rotate)) scale(1);}
+.heart-particle.absorb{opacity:0; transform:translate(-50%,-50%) translate(var(--target-x),var(--target-y)) rotate(0deg) scale(.25); transition-duration:.18s;}
+.pill.heart-target-pulse{animation:heartTargetPulse .15s cubic-bezier(.2,1.6,.4,1) both;}
+@keyframes heartTargetPulse{0%{transform:scale(1)} 55%{transform:scale(1.15)} 100%{transform:scale(1)}}
 
 .controls{ flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:7px; padding:6px 14px 10px; }
 .balls-left-row{display:flex; align-items:center; gap:8px; font-family:'Baloo 2'; font-weight:700; font-size:12.5px; color:var(--ink-dim);}
@@ -536,6 +549,7 @@ html,body{
 
   <div class="toast" id="toast"></div>
   <div class="confetti-layer" id="confettiLayer"></div>
+  <div class="heart-collect-layer" id="heartCollectLayer"></div>
 </div>
 
 <script>
@@ -811,6 +825,48 @@ function floatText(x, y, text, color){
   board.appendChild(f);
   setTimeout(()=> f.remove(), 1150);
 }
+function animateHeartsCollect(fromX, fromY){
+  const layer = $('#heartCollectLayer');
+  const board = $('.board-wrap');
+  const target = $('.topbar .pill');
+  if(!layer || !board || !target) return;
+
+  const boardRect = board.getBoundingClientRect();
+  const layerRect = layer.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const startX = boardRect.left - layerRect.left + renderOffsetX + fromX * renderScale;
+  const startY = boardRect.top - layerRect.top + renderOffsetY + fromY * renderScale;
+  const targetX = targetRect.left - layerRect.left + targetRect.width / 2;
+  const targetY = targetRect.top - layerRect.top + targetRect.height / 2;
+  const count = 3 + Math.floor(Math.random() * 3);
+
+  setTimeout(()=>{
+    for(let i=0; i<count; i++){
+      const particle = document.createElement('div');
+      const scatterX = (Math.random() - .5) * 78;
+      const scatterY = -20 - Math.random() * 34;
+      particle.className = 'heart-particle';
+      particle.style.left = startX + 'px';
+      particle.style.top = startY + 'px';
+      particle.style.setProperty('--scatter-x', scatterX + 'px');
+      particle.style.setProperty('--scatter-y', scatterY + 'px');
+      particle.style.setProperty('--scatter-rotate', ((Math.random() - .5) * 40) + 'deg');
+      particle.style.setProperty('--target-x', (targetX - startX) + 'px');
+      particle.style.setProperty('--target-y', (targetY - startY) + 'px');
+      layer.appendChild(particle);
+      requestAnimationFrame(()=> particle.classList.add('fly'));
+      setTimeout(()=>{
+        particle.classList.replace('fly', 'absorb');
+        particle.addEventListener('transitionend', ()=> particle.remove(), {once:true});
+        target.classList.remove('heart-target-pulse');
+        void target.offsetWidth;
+        target.classList.add('heart-target-pulse');
+        clearTimeout(target._heartPulseTimer);
+        target._heartPulseTimer = setTimeout(()=> target.classList.remove('heart-target-pulse'), 170);
+      }, 530 + i * 45);
+    }
+  }, 200);
+}
 function confettiBurst(){
   const layer = $('#confettiLayer');
   const colors = ['#ff5b82','#f3c04a','#4fc3e8','#fff3cf','#f3a24a','#59d9a0','#b98af0'];
@@ -965,6 +1021,7 @@ $('#streakBtn').addEventListener('click', ()=>{
 ============================================================ */
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 const VIRTUAL_WIDTH = 600, VIRTUAL_HEIGHT = 900;
+const PHYSICS_SPEED = 4.05;
 let engine, world, canvas, ctx, W = VIRTUAL_WIDTH, H = VIRTUAL_HEIGHT;
 let renderScale = 1, renderOffsetX = 0, renderOffsetY = 0, renderDpr = 1;
 let pegs = [], bucketSensors = [], bonusSensor = null, walls = [], launcherParts = [], outerArchParts = [], playfieldPath = [], plungerWallX = 550;
@@ -1005,14 +1062,17 @@ function initPhysics(){
   buildBoard();
   Events.on(engine, 'collisionStart', onCollision);
 
-  (function loop(){
-    Engine.update(engine, 1000/60);
+  let previousFrameTime = performance.now();
+  (function loop(frameTime){
+    const delta = Math.min(100, Math.max(0, frameTime - previousFrameTime));
+    previousFrameTime = frameTime;
+    Engine.update(engine, (delta || 1000/60) * PHYSICS_SPEED);
     recoverLauncherBalls();
     applyLauncherExitForce();
     restoreBallCollisionsAfterExit();
     render();
     requestAnimationFrame(loop);
-  })();
+  })(previousFrameTime);
 }
 
 function applyLauncherExitForce(){
@@ -1208,6 +1268,7 @@ async function handleBucketLand(ball, idx){
   balls = balls.filter(b=>b!==ball);
   void saveState();
   refreshTop();
+  animateHeartsCollect(ball.position.x, ball.position.y);
   floatText(ball.position.x, ball.position.y-10, `+${reward} (x${mult})`, BUCKET_COLORS[idx]);
   haptic(mult>=50?'success':'light');
 }
