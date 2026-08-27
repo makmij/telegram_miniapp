@@ -69,7 +69,7 @@ html,body{
 .icon{width:1em; height:1em; display:inline-block; vertical-align:-0.12em; overflow:visible;}
 
 /* ===== TOP BAR ===== */
-.topbar{ z-index:5; display:flex; align-items:center; gap:8px; padding:12px 12px 8px; flex-shrink:0; }
+.topbar{ position:absolute; top:0; left:0; right:0; z-index:5; display:flex; align-items:center; gap:8px; padding:12px 12px 8px; background:transparent; }
 .pill{
   display:flex; align-items:center; gap:7px;
   background:linear-gradient(180deg, rgba(80,44,150,.85), rgba(28,13,54,.9));
@@ -109,19 +109,6 @@ html,body{
   content:none;
 }
 #pinCanvas{position:absolute; inset:0; width:100%; height:100%; display:block; z-index:2;}
-
-.bonus-banner{
-  position:absolute; top:9px; left:50%; transform:translateX(-50%);
-  z-index:6; display:flex; align-items:center; gap:7px;
-  background:linear-gradient(180deg, rgba(30,14,58,.75), rgba(15,7,30,.75));
-  border:1px solid rgba(243,192,74,.4); border-top-color:rgba(255,255,255,.25);
-  padding:5px 12px 5px 8px; border-radius:13px; font-size:11px; font-weight:700; color:var(--gold-hi);
-  font-family:'Baloo 2'; box-shadow:0 3px 8px rgba(0,0,0,.35);
-}
-.bonus-banner .icon{font-size:15px;}
-.bonus-dots{display:flex; gap:3.5px;}
-.bonus-dots span{width:6px;height:6px;border-radius:50%; background:rgba(255,255,255,.2); box-shadow:inset 0 1px 1px rgba(0,0,0,.3);}
-.bonus-dots span.on{background:radial-gradient(circle at 35% 30%, #fff, var(--rose) 60%); box-shadow:0 0 6px var(--rose);}
 
 .floater{
   position:absolute; z-index:8; font-family:'Baloo 2'; font-weight:800; font-size:15px;
@@ -441,11 +428,6 @@ html,body{
   <!-- GAME SCREEN -->
   <section class="screen active" id="screen-game">
     <div class="board-wrap">
-      <div class="bonus-banner">
-        <svg class="icon"><use href="#ic-sparkle"/></svg>
-        <span>Бонус-цель</span>
-        <span class="bonus-dots" id="bonusDots"></span>
-      </div>
       <canvas id="pinCanvas"></canvas>
     </div>
     <div class="controls">
@@ -814,15 +796,6 @@ function refreshTop(){
   $('#ballsBalance').textContent = state.ballsLeft;
   $('#ballsBarFill').style.width = Math.max(0, Math.min(100, (state.ballsLeft/DAILY_BALLS)*100)) + '%';
   $('#launchBtn').disabled = state.ballsLeft <= 0;
-  renderBonusDots();
-}
-function renderBonusDots(){
-  const wrap = $('#bonusDots'); wrap.innerHTML='';
-  for(let i=0;i<BONUS_HITS_NEEDED;i++){
-    const s = document.createElement('span');
-    if (i < (state.bonusHits % BONUS_HITS_NEEDED)) s.classList.add('on');
-    wrap.appendChild(s);
-  }
 }
 function toast(msg, iconId){
   const t = $('#toast');
@@ -1131,7 +1104,7 @@ function buildBoard(){
 function buildPlayfieldBorders(wallOpts){
   const wallX = 0, rightX = VIRTUAL_WIDTH;
   const archRadius = (rightX-wallX)/2;
-  const archCenterX = (wallX+rightX)/2, archCenterY = 270;
+  const archCenterX = (wallX+rightX)/2, archCenterY = 330;
   const archPoints = [];
   for(let i=0;i<=32;i++){
     const angle = Math.PI + Math.PI*i/32;
@@ -1219,7 +1192,6 @@ async function handleBonusHit(ball){
   balls = balls.filter(b=>b!==ball);
   setTimeout(()=> ball._bonusHitCooldown=false, 600);
   state.bonusHits++;
-  renderBonusDots();
   haptic('medium');
   floatText(ball.position.x, ball.position.y, 'Бонус!', '#4fc3e8');
   if (state.bonusHits % BONUS_HITS_NEEDED === 0){
@@ -1330,6 +1302,17 @@ function render(){
     ctx.fillStyle = fg;
     ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=1.4;
     ctx.fill(); ctx.stroke();
+    const bonusCount = state.bonusHits === 0 ? 0 : ((state.bonusHits - 1) % BONUS_HITS_NEEDED) + 1;
+    if (bonusCount > 0){
+      ctx.font = '800 22px Baloo 2';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(10,5,24,.85)';
+      ctx.strokeText(String(bonusCount), cx, cy + r + 24);
+      ctx.fillStyle = '#fff3cf';
+      ctx.fillText(String(bonusCount), cx, cy + r + 24);
+    }
     ctx.restore();
   }
 
