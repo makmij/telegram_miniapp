@@ -1029,21 +1029,26 @@ const LAUNCHER_WALL_CATEGORY = 0x0002;
 let balls = [];
 // Each entry is an independent peg that can be moved, resized, or removed.
 const PEG_CONFIGS = [
-  {x:122.4,y:126}, {x:211.2,y:126}, {x:300,y:126}, {x:388.8,y:126},
-  {x:78,y:174}, {x:152,y:174}, {x:226,y:174}, {x:300,y:174}, {x:374,y:174}, {x:448,y:174},
-  {x:122.4,y:222}, {x:211.2,y:222}, {x:300,y:222}, {x:388.8,y:222}, {x:477.6,y:222},
-  {x:78,y:270}, {x:152,y:270}, {x:226,y:270}, {x:300,y:270}, {x:374,y:270}, {x:448,y:270},
-  {x:122.4,y:318}, {x:211.2,y:318}, {x:300,y:318}, {x:388.8,y:318}, {x:477.6,y:318},
-  {x:78,y:366}, {x:152,y:366}, {x:226,y:366}, {x:374,y:366}, {x:448,y:366},
-  {x:122.4,y:414}, {x:211.2,y:414}, {x:300,y:414}, {x:388.8,y:414}, {x:477.6,y:414},
-  {x:78,y:462}, {x:152,y:462}, {x:226,y:462}, {x:300,y:462}, {x:374,y:462}, {x:448,y:462},
-  {x:122.4,y:510}, {x:211.2,y:510}, {x:300,y:510}, {x:388.8,y:510}, {x:477.6,y:510},
-  {x:260,y:84, label:'upper_peg'}, {x:350,y:84, label:'upper_peg'}, {x:300,y:40, radius:12, label:'top_peg'},
+  {x:300,y:40, radius:12, label:'top_peg'}, {x:300,y:100}, {x:225,y:126}, {x:375,y:126},
+  , {x:152,y:185}, , {x:300,y:185}, , {x:448,y:185},
+  {x:240,y:220}, {x:374,y:220},
+  {x:150,y:260, radius: 25}
+  
+  
+  
+  
+ 
+  
+  // {x:122.4,y:510}, {x:211.2,y:510}, {x:300,y:510}, {x:388.8,y:510}, {x:477.6,y:510},
+  , 
   // {x:535,y:220, radius:8, label:'launcher_deflector'}
 ];
 // Editable small arc obstacles. x/y mark the center of the arc base.
 const ARC_CONFIGS = [
-  {x:300, y:620, width:110, height:38, thickness:10, rotation:0}
+  // {x:300, y:620, width:50, height:5, thickness:10, rotation:0,},
+  // {x:350, y:620, width:50, height:5, thickness:10, rotation:0,},
+  // {x:250, y:620, width:50, height:5, thickness:10, rotation:0,},
+  // {x:530, y:250, width:200, height:20, thickness:10, rotation:50,}
 ];
 function setPhysicsMaterial(body, restitution, friction){
   body.restitution = restitution;
@@ -1218,7 +1223,7 @@ function buildPlayfieldBorders(wallOpts){
   verticalWalls[1].friction = 0.01;
   verticalWalls[1].frictionStatic = 0.01;
   const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.65);
-  const plungerEndY = 310;
+  const plungerEndY = 265;
   const plungerWall = Bodies.rectangle(plungerWallX,(plungerEndY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-plungerEndY, {
     isStatic:true, restitution:0.72, friction:0.01, frictionAir:0, frictionStatic:0,
     collisionFilter:{category:LAUNCHER_WALL_CATEGORY, mask:0xFFFFFFFF},
@@ -1343,18 +1348,39 @@ function render(){
     ctx.restore();
   }
 
-  if(launcherParts.length){
-    const laneTop = 310, laneBottom = VIRTUAL_HEIGHT-30;
+    if(launcherParts.length){
+    const laneTop = 200, laneBottom = VIRTUAL_HEIGHT-30;
+    
+    // Высота, где прямая стена переходит в плавный круглый изгиб (за 60 пикселей до верха)
+    const bendStartY = laneTop + 130; 
+    // На сколько пикселей верхушка плавно сместится влево
+    const bendAmountX = 45; 
+
     ctx.save();
     ctx.strokeStyle = 'rgba(243,192,74,.72)';
-    ctx.lineWidth = Math.max(4,W*0.02);
+    ctx.lineWidth = Math.max(4, W*0.02);
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(plungerWallX,laneBottom);
-    ctx.lineTo(plungerWallX,laneTop);
+    
+    // 1. Начинаем снизу туннеля и ведем прямую вертикальную линию вверх
+    ctx.moveTo(plungerWallX, laneBottom);
+    ctx.lineTo(plungerWallX, bendStartY);
+    
+    // 2. Рисуем идеально гладкое скругление влево (дугу полусферы)
+    // Первые два числа (plungerWallX, laneTop) — это точка-магнит, которая скругляет угол.
+    // Вторые два числа — финальная точка, куда приходит гладкий носик стены.
+    ctx.quadraticCurveTo(
+      plungerWallX, 
+      laneTop + 35, 
+      plungerWallX - bendAmountX, 
+      laneTop
+    );
+    
     ctx.stroke();
     ctx.restore();
   }
+
 
   // pegs — metallic gold with specular highlight
   pegs.forEach(p=>{
