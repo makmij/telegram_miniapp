@@ -1246,7 +1246,7 @@ function buildPlayfieldBorders(wallOpts){
   verticalWalls[1].friction = 0.01;
   verticalWalls[1].frictionStatic = 0.01;
   const outer = addPhysicalPolyline(archPoints,'outer_arch',thickness,0.65);
-  const plungerEndY = 265;
+  const plungerEndY = 280;
   const plungerWall = Bodies.rectangle(plungerWallX,(plungerEndY+VIRTUAL_HEIGHT)/2,12,VIRTUAL_HEIGHT-plungerEndY, {
     isStatic:true, restitution:0.72, friction:0.01, frictionAir:0, frictionStatic:0,
     collisionFilter:{category:LAUNCHER_WALL_CATEGORY, mask:0xFFFFFFFF},
