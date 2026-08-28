@@ -1032,7 +1032,7 @@ const PEG_CONFIGS = [
   {x:300,y:40, radius:12, label:'top_peg'}, {x:300,y:100}, {x:225,y:126}, {x:375,y:126},
   , {x:152,y:185}, , {x:300,y:185}, , {x:448,y:185},
   {x:240,y:220}, {x:374,y:220},
-  {x:150,y:260, radius: 25}
+  {x:150,y:260, radius: 25}, {x:150,y:260, radius: 25}
   
   
   
@@ -1045,10 +1045,10 @@ const PEG_CONFIGS = [
 ];
 // Editable small arc obstacles. x/y mark the center of the arc base.
 const ARC_CONFIGS = [
-  // {x:300, y:620, width:50, height:5, thickness:10, rotation:0,},
-  // {x:350, y:620, width:50, height:5, thickness:10, rotation:0,},
-  // {x:250, y:620, width:50, height:5, thickness:10, rotation:0,},
-  // {x:530, y:250, width:200, height:20, thickness:10, rotation:50,}
+  {x:300, y:620, width:50, height:5, thickness:10, rotation:0,},
+  {x:350, y:620, width:50, height:5, thickness:10, rotation:0,},
+  {x:250, y:620, width:50, height:5, thickness:10, rotation:0,},
+
 ];
 function setPhysicsMaterial(body, restitution, friction){
   body.restitution = restitution;
@@ -1162,26 +1162,49 @@ function buildBoard(){
     arcParts.push(...addPhysicalPolyline(points, 'arc_obstacle', config.thickness || 10, config.restitution ?? 0.7));
   });
 
-  bonusSensor = setPhysicsMaterial(Bodies.circle(W/2, 360, 24, {
+  bonusSensor = setPhysicsMaterial(Bodies.circle(W/2, 420, 24, {
     isStatic:true, isSensor:true, label:'bonus'
   }), 0.95, 0);
 
-  const bucketTop = 774;
+    // 1. Координата верха бакетов. Оставим около 700-720, чтобы у высоких корзин было место снизу
+  const bucketTop = 680; 
   const n = BUCKETS.length;
   const mainWidth = plungerWallX - 8;
   const bw = mainWidth/n;
   bucketSensors = [];
-  for(let i=0;i<=n;i++){
-    walls.push(Bodies.rectangle(i*bw, bucketTop + 90, 4, 120, {isStatic:true, friction:0.05, render:{visible:false}}));
+  
+  // Увеличиваем высоту разделительных палочек до 200 пикселей!
+  const bucketHeight = 225; 
+
+  // 2. Создаем длинные вертикальные разделители для глубоких корзин
+  for(let i=0; i<=n; i++){
+    walls.push(Bodies.rectangle(
+      i * bw, 
+      bucketTop + (bucketHeight / 2), // Центр палочки по Y
+      4,                              // Толщина стенки
+      bucketHeight,                   // УВЕЛИЧИЛИ ВЫСОТУ: теперь они вытянуты вверх!
+      { isStatic: true, friction: 0.05, render: { visible: false } }
+    ));
   }
-  for(let i=0;i<n;i++){
-    const sensor = Bodies.rectangle(i*bw + bw/2, bucketTop + 99, bw-6, 10, { isStatic:true, isSensor:true, label:'bucket_'+i });
+  
+  // 3. Сдвигаем невидимые сенсоры (дно лунок), которые ловят шарик
+  for(let i=0; i<n; i++){
+    // Ставим датчик почти на самое дно вытянутой корзины
+    const sensor = Bodies.rectangle(
+      i * bw + bw / 2, 
+      bucketTop + bucketHeight - 15,  // Датчик сработает у самого низа корзины
+      bw - 6, 
+      10, 
+      { isStatic: true, isSensor: true, label: 'bucket_' + i }
+    );
     bucketSensors.push(sensor);
   }
+  
   walls.push(Bodies.rectangle(W/2, VIRTUAL_HEIGHT+10, VIRTUAL_WIDTH*2, 20, {isStatic:true, render:{visible:false}}));
 
   World.add(world, [...walls, ...outerArchParts, ...pegs, ...arcParts, ...launcherParts, bonusSensor, ...bucketSensors]);
 }
+
 
 function createArcPoints(config){
   const angleOffset = (config.rotation || 0) * Math.PI / 180;
@@ -1436,28 +1459,58 @@ function render(){
   }
 
   // bucket zones with jeweled label chip
+    // Отрисовка зон бакетов (теперь они вытянуты вверх, как глубокие сочные стаканы)
+
+    // Отрисовка зон бакетов со смещением фишек выше
+    // Отрисовка лунок в виде больших, сочных, вытянутых плашек с градиентом
   const n = BUCKETS.length, bw = (plungerWallX-8)/n;
+
   bucketSensors.forEach((s,i)=>{
     ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.fillStyle = BUCKET_COLORS[i];
-    ctx.fillRect(i*bw+3, s.position.y-18, bw-6, 40);
     ctx.globalAlpha = 1;
-    const chipW = Math.min(bw-8, W*0.09), chipH = 20;
-    const cx = i*bw+bw/2, cy = s.position.y;
-    roundRect(ctx, cx-chipW/2, cy-chipH/2, chipW, chipH, 8);
-    const cg = ctx.createLinearGradient(0,cy-chipH/2,0,cy+chipH/2);
-    cg.addColorStop(0, shadeColor(BUCKET_COLORS[i], 30));
-    cg.addColorStop(1, shadeColor(BUCKET_COLORS[i], -25));
+
+    // 1. НАСТРОЙКА РАЗМЕРОВ БОЛЬШОЙ ПЛАШКИ
+    const chipW = bw - 6;          // Растягиваем плашку почти на всю ширину лунки (с зазором 3px по бокам)
+    const chipH = 50;              // ВЫСОТА ПЛАШКИ: сделайте больше (например, 60 или 70), если хотите вытянуть её выше!
+    
+    const cx = i*bw + bw/2;        // Центр по горизонтали
+    
+    // Сдвиг центра по вертикали, чтобы большая плашка аккуратно сидела в лунке
+    const chipOffsetUp = 10;       
+    const cy = s.position.y - chipOffsetUp; 
+
+    // 2. РИСУЕМ БОЛЬШУЮ ПЛАШКУ С КРУГЛЫМИ УГЛАМИ
+    // Рисуем рамку плашки (последнее число 12 — это радиус скругления углов)
+    roundRect(ctx, cx - chipW/2, cy - chipH/2, chipW, chipH, 12);
+    
+    // Создаем красивый объемный градиент для всей плашки
+    const cg = ctx.createLinearGradient(0, cy - chipH/2, 0, cy + chipH/2);
+    cg.addColorStop(0, shadeColor(BUCKET_COLORS[i], 30));  // Светлый блик сверху
+    cg.addColorStop(0.4, BUCKET_COLORS[i]);                 // Основной цвет
+    cg.addColorStop(1, shadeColor(BUCKET_COLORS[i], -30)); // Глубокая тень снизу
+    
     ctx.fillStyle = cg;
-    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1;
-    ctx.fill(); ctx.stroke();
-    ctx.font = `800 ${Math.max(10,W*0.032)}px Baloo 2`;
-    ctx.fillStyle = '#1a0d33';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('x'+BUCKETS[i], cx, cy+0.5);
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; // Мягкая светлая обводка краев
+    ctx.lineWidth = 1.5;
+    ctx.fill(); 
+    ctx.stroke();
+
+    // 3. ПИШЕМ БОЛЬШОЙ ТЕКСТ (x50, x5...) СТРОГО ПО ЦЕНТРУ ПЛАШКИ
+    // Увеличили размер шрифта (W * 0.045 вместо 0.032), чтобы он соответствовал большой плашке
+    ctx.font = `800 ${Math.max(14, W * 0.045)}px Baloo 2`;
+    ctx.fillStyle = '#1a0d33'; // Темный читаемый цвет текста
+    ctx.textAlign = 'center'; 
+    ctx.textBaseline = 'middle';
+    
+    // Добавляем микро-сдвиг тексту для идеального оптического центра
+    ctx.fillText('x' + BUCKETS[i], cx, cy + 0.5);
+
     ctx.restore();
   });
+
+
+
+
 
   // editable arc obstacles
   ARC_CONFIGS.forEach(config=>{
