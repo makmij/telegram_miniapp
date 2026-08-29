@@ -449,8 +449,8 @@ html,body{
         <div class="balls-track"><i id="ballsBarFill" style="width:100%"></i></div>
       </div>
       <button class="launch-btn" id="launchBtn">
-        <svg class="icon"><use href="#ic-orb"/></svg>
-        ЗАПУСК
+        <svg class="icon"><use href=""/></svg>
+        <!--ЗАПУСК (можно стереть ковычки и текст появится)-->
       </button>
     </div>
   </section>
@@ -1452,14 +1452,14 @@ function render(){
     ctx.fill(); ctx.stroke();
     const bonusCount = state.bonusHits === 0 ? 0 : ((state.bonusHits - 1) % BONUS_HITS_NEEDED) + 1;
     if (bonusCount > 0){
-      ctx.font = '800 22px Baloo 2';
+      ctx.font = '800 22px "Baloo 2"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.lineWidth = 4;
       ctx.strokeStyle = 'rgba(10,5,24,.85)';
-      ctx.strokeText(String(bonusCount), cx, cy + r + 24);
+      ctx.strokeText(String(bonusCount), cx, cy + r - 25);
       ctx.fillStyle = '#fff3cf';
-      ctx.fillText(String(bonusCount), cx, cy + r + 24);
+      ctx.fillText(String(bonusCount), cx, cy + r - 25);
     }
     ctx.restore();
   }
@@ -1503,7 +1503,7 @@ function render(){
 
     // 3. ПИШЕМ БОЛЬШОЙ ТЕКСТ (x50, x5...) СТРОГО ПО ЦЕНТРУ ПЛАШКИ
     // Увеличили размер шрифта (W * 0.045 вместо 0.032), чтобы он соответствовал большой плашке
-    ctx.font = `800 ${Math.max(14, W * 0.045)}px Baloo 2`;
+    ctx.font = `800 ${Math.max(14, W * 0.045)}px "Baloo 2"`;
     ctx.fillStyle = '#1a0d33'; // Темный читаемый цвет текста
     ctx.textAlign = 'center'; 
     ctx.textBaseline = 'middle';
@@ -1644,7 +1644,7 @@ function drawWheel(){
     wctx.rotate(i*seg + seg/2);
     wctx.textAlign='right';
     wctx.fillStyle='rgba(0,0,0,.75)';
-    wctx.font='800 84px Baloo 2';
+    wctx.font='800 20px "Baloo 2"';
     wctx.fillText('+'+WHEEL_SEGMENTS[i], r-16, 12);
     wctx.fillStyle='#fff';
     wctx.fillText('+'+WHEEL_SEGMENTS[i], r-18, 10);
