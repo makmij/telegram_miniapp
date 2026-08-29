@@ -1030,7 +1030,7 @@ let balls = [];
 // Each entry is an independent peg that can be moved, resized, or removed.
 const PEG_CONFIGS = [
   {x:300,y:40, radius:12, label:'top_peg'}, {x:300,y:100}, {x:225,y:126}, {x:375,y:126},
-  , {x:152,y:185}, , {x:300,y:185}, , {x:448,y:185},
+  {x:152,y:185}, {x:300,y:185}, , {x:448,y:185},
   {x:235,y:220}, {x:374,y:220},
   {x:150,y:260, radius: 25}, {x:305,y: 265} , {x:450,y:260, radius: 25},
   {x:75,y:330}, {x:235,y:330}, {x:374,y:330}, {x:500,y:330},
@@ -1040,18 +1040,19 @@ const PEG_CONFIGS = [
   {x:200,y:510}, {x:300,y:510}, {x:400,y:510},
   {x:75,y:560}, {x:235,y:560}, {x:374,y:560}, {x:500,y:560},
   {x:310,y:570},
-  
-  
+  {x:130,y:600}, {x:420,y:600},
+  {x:70,y:670}, {x:480,y:670},
+  {x:130,y:725}, {x:420,y:725}
  
   
   // {x:122.4,y:510}, {x:211.2,y:510}, {x:300,y:510}, {x:388.8,y:510}, {x:477.6,y:510},
-  , 
+  
   // {x:535,y:220, radius:8, label:'launcher_deflector'}
 ];
 // Editable small arc obstacles. x/y mark the center of the arc base.
 const ARC_CONFIGS = [
-  {x:300, y:720, width:100, height:12, thickness:10, rotation:180,},
-  {x:380, y:640, width:70, height:5, thickness:10, rotation:20,},
+  {x:300, y:750, width:100, height:12, thickness:10, rotation:180,},
+  {x:380, y:640, width:70, height:5, thickness:10, rotation:25,},
   {x:230, y:640, width:70, height:5, thickness:10, rotation:-20,},
 
 ];
@@ -1167,7 +1168,7 @@ function buildBoard(){
     arcParts.push(...addPhysicalPolyline(points, 'arc_obstacle', config.thickness || 10, config.restitution ?? 0.7));
   });
 
-  bonusSensor = setPhysicsMaterial(Bodies.circle(W/2, 700, 24, {
+  bonusSensor = setPhysicsMaterial(Bodies.circle(W/2, 730, 30, {
     isStatic:true, isSensor:true, label:'bonus'
   }), 0.95, 0);
 
